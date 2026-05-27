@@ -1,3 +1,19 @@
+/* Importa o estilo do Windows 98 direto de um servidor público (CDN) */
+@import url("https://unpkg.com/98.css");
+
+/* Centraliza o seu app na tela e coloca uma cor de fundo clássica dos anos 90 */
+body {
+  background-color: #008080 !important; /* Aquele verde-azulado clássico */
+  font-family: "MS Sans Serif", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;

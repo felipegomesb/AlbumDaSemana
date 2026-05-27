@@ -1,7 +1,7 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
+import CadastroSimples from './components/cadastroSimples.vue'
 </script>
 
 <template>
-  <HelloWorld />
+  <CadastroSimples />
 </template>

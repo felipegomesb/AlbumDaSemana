@@ -60,34 +60,79 @@ const registrar = async () => {
 </script>
 
 <template>
-  <div class="container">
-    <h2>Cadastro de Usuário</h2>
-    <form @submit.prevent="registrar">
-      <div>
-        <label>Nome:</label>
-        <input v-model="form.user_username" type="text" required />
+  <div class="window container">
+    
+    <div class="title-bar">
+      <div class="title-bar-text">Cadastro de Usuário</div>
+      <div class="title-bar-controls">
+        <button aria-label="Minimize"></button>
+        <button aria-label="Maximize"></button>
+        <button aria-label="Close"></button>
       </div>
-      <div>
-        <label>E-mail:</label>
-        <input v-model="form.user_email" type="email" required />
+    </div>
+
+    <div class="window-body">
+      <form @submit.prevent="registrar">
+        
+        <div class="field-row-stacked">
+          <label for="username">Nome:</label>
+          <input v-model="form.user_username" id="username" type="text" required />
+        </div>
+        
+        <div class="field-row-stacked">
+          <label for="email">E-mail:</label>
+          <input v-model="form.user_email" id="email" type="email" required />
+        </div>
+        
+        <div class="field-row-stacked">
+          <label for="password">Senha:</label>
+          <input v-model="form.user_password" id="password" type="password" required />
+        </div>
+        
+        <div class="actions">
+          <button type="submit" :disabled="loading">
+            {{ loading ? 'Aguarde...' : 'Cadastrar' }}
+          </button>
+        </div>
+
+      </form>
+      
+      <div v-if="success" class="status-box">
+        <p>Usuário cadastrado com sucesso!</p>
       </div>
-      <div>
-        <label>Senha:</label>
-        <input v-model="form.user_password" type="password" required />
-      </div>
-      <button type="submit" :disabled="loading">
-        {{ loading ? 'Cadastrando...' : 'Cadastrar' }}
-      </button>
-    </form>
-    <p v-if="success" class="success">Usuário cadastrado com sucesso!</p>
+    </div>
+
   </div>
 </template>
 
 <style scoped>
-.container { max-width: 400px; margin: 2rem auto; padding: 1rem; }
-div { margin-bottom: 1rem; }
-input { width: 100%; padding: 0.5rem; }
-button { width: 100%; padding: 0.5rem; background: #007bff; color: white; border: none; cursor: pointer; }
-button:disabled { background: #ccc; }
-.success { color: green; margin-top: 1rem; }
+/* Estilos extras apenas para posicionamento, já que o 98.css cuida do visual */
+.container {
+  width: 350px;
+  margin: 0 auto;
+}
+
+.field-row-stacked {
+  margin-bottom: 14px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
+button[type="submit"] {
+  min-width: 80px;
+}
+
+.status-box {
+  margin-top: 15px;
+  padding: 10px;
+  border: 2px inset #fff;
+  background: #fff;
+  color: green;
+  text-align: center;
+  font-weight: bold;
+}
 </style>
