@@ -11,7 +11,6 @@ const success = ref(false)
 
 // Dados do formulário
 const form = ref({
-  user_username: '',
   user_email: '',
   user_password: ''
 })
@@ -19,21 +18,21 @@ const form = ref({
 // Buscar usuários ao carregar a página
 onMounted(async () => {
   try {
-    const response = await fetch(`${apiBase}/data/register/`)
+    const response = await fetch(`${apiBase}/data/`)
     users.value = await response.json()
   } catch (error) {
     console.error('Erro ao buscar usuários:', error)
   }
 })
 
-// Função para registrar o usuário (AQUI ACONTECE A CONEXÃO REAL)
-const Cadastro = async () => {
+// funcao login
+const Login = async () => {
   loading.value = true
   success.value = false
 
   try {
     // 1. Fazemos a requisição para o backend
-    const response = await fetch(`${apiBase}/data/register/`, {
+    const response = await fetch(`${apiBase}/data/login/`, {
       method: 'POST', // Método para criar dados
       headers: {
         'Content-Type': 'application/json' // Avisa o backend que estamos enviando JSON
@@ -43,16 +42,16 @@ const Cadastro = async () => {
 
     // 2. Verificamos se o backend retornou algum erro (ex: 400 ou 500)
     if (!response.ok) {
-      throw new Error('Erro ao cadastrar usuário no servidor.')
+      throw new Error('Erro ao realizar login no servidor.')
     }
 
     // 3. Se deu tudo certo, mostramos a mensagem e limpamos o formulário
     success.value = true
-    form.value = { user_username: '', user_email: '', user_password: '' }
+    form.value = { user_email: '', user_password: '' }
     
   } catch (error) {
-    console.error('Erro no cadastro:', error)
-    alert('Falha ao cadastrar. Verifique o console.')
+    console.error('Erro no login:', error)
+    alert('Falha ao realizar login. Verifique o console.')
   } finally {
     loading.value = false
   }
@@ -63,7 +62,7 @@ const Cadastro = async () => {
   <div class="window container">
     
     <div class="title-bar">
-      <div class="title-bar-text">Cadastro de Usuário</div>
+      <div class="title-bar-text">Login</div>
       <div class="title-bar-controls">
         <button aria-label="Minimize"></button>
         <button aria-label="Maximize"></button>
@@ -72,12 +71,7 @@ const Cadastro = async () => {
     </div>
 
     <div class="window-body">
-      <form @submit.prevent="Cadastro">
-        
-        <div class="field-row-stacked">
-          <label for="username">Nome:</label>
-          <input v-model="form.user_username" id="username" type="text" required />
-        </div>
+      <form @submit.prevent="Login">
         
         <div class="field-row-stacked">
           <label for="email">E-mail:</label>
@@ -89,22 +83,20 @@ const Cadastro = async () => {
           <input v-model="form.user_password" id="password" type="password" required />
         </div>
         
-       
-         <div class="field-row-stacked">
-          <p>Já tem uma conta? <a href="/login">Faça o login</a></p>
+        <div class="field-row-stacked">
+          <p>Não tem conta? <router-link to="/cadastro">Cadastre-se aqui</router-link></p>
         </div>
-
 
         <div class="actions">
           <button type="submit" :disabled="loading">
-            {{ loading ? 'Aguarde...' : 'Cadastrar' }}
+            {{ loading ? 'Aguarde...' : 'Login' }}
           </button>
         </div>
 
       </form>
       
       <div v-if="success" class="status-box">
-        <p>Usuário cadastrado com sucesso!</p>
+        <p>Usuário logado com sucesso!</p>
       </div>
     </div>
 

@@ -138,3 +138,26 @@ def user_manager(request, pk=None):
                     return Response({"error": "Usuário não encontrado"}, status=status.HTTP_404_NOT_FOUND)
             
             return Response({"error": "ID não fornecido"}, status=status.HTTP_400_BAD_REQUEST)
+    
+#login e registro de usuário podem ser feitos usando os endpoints acima, basta enviar os dados corretos no corpo da requisição.
+
+@api_view(['POST'])
+def login(request):
+    email = request.data.get('user_email')
+    password = request.data.get('user_password')
+
+    try:
+        user = Usuario.objects.get(user_email=email, user_password=password)
+        serializer = UsuarioSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Usuario.DoesNotExist:
+        return Response({"error": "Credenciais inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
+
+#registro de usuário
+@api_view(['POST'])
+def register(request):
+    serializer = UsuarioSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
