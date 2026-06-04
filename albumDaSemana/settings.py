@@ -10,22 +10,46 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
-
+from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv('.env.local')
 
+# Small helper to read env vars with fallback names and strip whitespace
+def env_get(key, *alts, default=None):
+    for k in (key,) + alts:
+        v = os.getenv(k)
+        if v is not None:
+            return v.strip()
+    return default
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-kl8-_4!w(5n91*jrtbq@i)nx07bxg40ov07k)2zx$5k4ne+z0m'
+ALLOWED_HOSTS = env_get("DJANGO-ALLOWED-HOSTS", "DJANGO_ALLOWED_HOSTS", default="*").split(",")
+
+
+SECRET_KEY = env_get("DJANGO-SECRET-KEY", "DJANGO_SECRET_KEY", default="unsafe-secret")
+DEBUG = bool(int(env_get("DJANGO-DEBUG", "DJANGO_DEBUG", default="0")))
+ALLOWED_HOSTS = env_get("DJANGO-ALLOWED-HOSTS", "DJANGO_ALLOWED_HOSTS", default="127.0.0.1").split(",")
+# Fix name: Django expects CSRF_TRUSTED_ORIGINS
+CSRF_TRUSTED_ORIGINS = env_get(
+    "DJANGO-CSRF-TRUSTED-ORIGINS", "DJANGO_CSRF_TRUSTED_ORIGINS",
+    default="http://localhost:3000,http://localhost:5173"
+).split(",")
+
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = []
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_PERMISSION_CLASSES': [],
+}
 
 
 # Application definition
@@ -43,14 +67,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'albumDaSemana.urls'
@@ -78,8 +98,13 @@ WSGI_APPLICATION = 'albumDaSemana.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        # Prefer explicit Postgres env vars if provided (docker-compose uses POSTGRES_*)
+        'ENGINE': 'django.db.backends.postgresql' if env_get('POSTGRES_DB') or env_get('DATABASE_ENGINE') else 'django.db.backends.sqlite3',
+        'NAME': env_get('POSTGRES_DB', 'DJANGO-DB-NAME', 'DATABASE_NAME', default=str(BASE_DIR / 'db.sqlite3')),
+        'USER': env_get('POSTGRES_USER', 'DJANGO-DB-USER', 'DATABASE_USER', default=''),
+        'PASSWORD': env_get('POSTGRES_PASSWORD', 'DJANGO-DB-PASSWORD', 'DATABASE_PASSWORD', default=''),
+        'HOST': env_get('DATABASE_HOST', 'DJANGO-DB-HOST', 'POSTGRES_HOST', default='localhost'),
+        'PORT': env_get('DATABASE_PORT', 'DJANGO-DB-PORT', 'POSTGRES_PORT', default='5432'),
     }
 }
 
@@ -119,10 +144,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 #CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
+    "http://localhost:8000"
 ]

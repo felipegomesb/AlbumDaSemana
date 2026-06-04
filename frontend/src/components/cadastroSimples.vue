@@ -17,14 +17,14 @@ const form = ref({
 })
 
 // Buscar usuários ao carregar a página
-onMounted(async () => {
-  try {
-    const response = await fetch(`${apiBase}/data/register/`)
-    users.value = await response.json()
-  } catch (error) {
-    console.error('Erro ao buscar usuários:', error)
-  }
-})
+// onMounted(async () => {
+//   try {
+//     const response = await fetch(`${apiBase}/data/register/`)
+//     users.value = await response.json()
+//   } catch (error) {
+//     console.error('Erro ao buscar usuários:', error)
+//   }
+// })
 
 // Função para registrar o usuário (AQUI ACONTECE A CONEXÃO REAL)
 const Cadastro = async () => {
@@ -32,27 +32,47 @@ const Cadastro = async () => {
   success.value = false
 
   try {
-    // 1. Fazemos a requisição para o backend
-    const response = await fetch(`${apiBase}/data/register/`, {
-      method: 'POST', // Método para criar dados
-      headers: {
-        'Content-Type': 'application/json' // Avisa o backend que estamos enviando JSON
-      },
-      body: JSON.stringify(form.value) // Transforma os dados do formulário em texto JSON
-    })
+    console.log('API BASE:', apiBase)
+    console.log('FORM:', form.value)
 
-    // 2. Verificamos se o backend retornou algum erro (ex: 400 ou 500)
-    if (!response.ok) {
-      throw new Error('Erro ao cadastrar usuário no servidor.')
+    const response = await fetch(`${apiBase}/data/register/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(form.value)
+    })
+    
+    const text = await response.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = text
     }
 
-    // 3. Se deu tudo certo, mostramos a mensagem e limpamos o formulário
+    console.log('STATUS:', response.status)
+    console.log('RESPONSE:', data)
+
+    if (!response.ok) {
+      throw new Error(
+        typeof data === 'string'
+          ? data
+          : JSON.stringify(data)
+      )
+    }
+
     success.value = true
-    form.value = { user_username: '', user_email: '', user_password: '' }
-    
+
+    form.value = {
+      user_username: '',
+      user_email: '',
+      user_password: ''
+    }
+
   } catch (error) {
     console.error('Erro no cadastro:', error)
-    alert('Falha ao cadastrar. Verifique o console.')
+    alert(`Falha ao cadastrar:\n${error.message}`)
   } finally {
     loading.value = false
   }

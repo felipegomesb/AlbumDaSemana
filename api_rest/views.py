@@ -6,6 +6,7 @@ from django.http import JsonResponse, HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth.hashers import make_password, check_password
 
 from .models import Usuario
 from .serializers import UsuarioSerializer
@@ -147,7 +148,9 @@ def login(request):
     password = request.data.get('user_password')
 
     try:
-        user = Usuario.objects.get(user_email=email, user_password=password)
+        user = Usuario.objects.get(user_email=email)
+        if not check_password(password, user.user_password):
+            return Response({"error": "Credenciais inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
         serializer = UsuarioSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Usuario.DoesNotExist:
@@ -157,7 +160,21 @@ def login(request):
 @api_view(['POST'])
 def register(request):
     serializer = UsuarioSerializer(data=request.data)
+
     if serializer.is_valid():
         serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.data, status=201)
+
+    return Response(
+        {
+            "serializer_errors": serializer.errors,
+            "received_data": request.data,
+        },
+        status=400
+    )
+
+
+
+from django.http import JsonResponse
+def ping(request):
+    return JsonResponse({"pong": True})
