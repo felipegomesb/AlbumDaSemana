@@ -1,10 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// Usando o '@', o Vite vai direto na pasta 'src' procurar a pasta 'components'
 import Login from './components/loginSimples.vue'
 import Cadastro from './components/cadastroSimples.vue'
+import HomePage from './components/HomePage.vue'
+import BuscaResultados from './components/BuscaResultados.vue'
+import AdminSpotify from './components/adminSpotify.vue'
 
 const routes = [
+  {
+    path: '/',
+    name: 'Home',
+    component: HomePage
+  },
   {
     path: '/login',
     name: 'Login',
@@ -14,6 +21,16 @@ const routes = [
     path: '/cadastro',
     name: 'Cadastro',
     component: Cadastro
+  },
+  {
+    path: '/busca',
+    name: 'Busca',
+    component: BuscaResultados
+  },
+  {
+    path: '/admin-spotify',
+    name: 'AdminSpotify',
+    component: AdminSpotify
   }
 ]
 
