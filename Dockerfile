@@ -43,8 +43,8 @@ USER appuser
 # Expose the application port
 EXPOSE 8000 
 
-# Make entry file executable
-RUN chmod +x  /app/entrypoint.prod.sh
+# Fix Windows CRLF and make entry file executable
+RUN sed -i 's/\r$//' /app/entrypoint.prod.sh && chmod +x /app/entrypoint.prod.sh
  
 # Start the application using Gunicorn
 CMD ["/app/entrypoint.prod.sh"]
