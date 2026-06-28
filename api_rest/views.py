@@ -162,7 +162,9 @@ def register(request):
     serializer = UsuarioSerializer(data=request.data)
 
     if serializer.is_valid():
-        serializer.save()
+        user = serializer.save()
+        user.user_password = make_password(user.user_password)
+        user.save()
         return Response(serializer.data, status=201)
 
     return Response(
