@@ -174,7 +174,213 @@ def register(request):
     )
 
 
-
 from django.http import JsonResponse
 def ping(request):
     return JsonResponse({"pong": True})
+
+
+# =============================================
+# SPOTIFY, MUSICAS, ALBUNS, ROTAÇÃO, BUSCA
+# =============================================
+
+from datetime import date, timedelta
+from django.db.models import Q
+from .models import Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana
+from .serializers import (
+    MusicaSerializer, AlbumSerializer,
+    MusicaDoDiaSerializer, AlbumDaSemanaSerializer,
+)
+from . import spotify
+
+
+# --- Spotify Search & Add ---
+
+@api_view(['GET'])
+def spotify_search(request):
+    query = request.query_params.get('q', '')
+    search_type = request.query_params.get('type', 'track')
+
+    if not query:
+        return Response({"error": "Parâmetro 'q' é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+
+    results = spotify.search_spotify(query, search_type)
+    if results is None:
+        return Response({"error": "Falha ao conectar com Spotify. Verifique as credenciais."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    return Response(results, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def spotify_add_track(request):
+    spotify_id = request.data.get('spotify_id')
+    titulo = request.data.get('titulo', '')
+    artista = request.data.get('artista', '')
+    album_nome = request.data.get('album_nome', '')
+    genero = request.data.get('genero', '')
+    duracao_ms = request.data.get('duracao_ms', 0)
+    capa_url = request.data.get('capa_url', '')
+
+    if not spotify_id or not titulo:
+        return Response({"error": "spotify_id e titulo são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
+
+    musica, created = Musica.objects.get_or_create(
+        spotify_id=spotify_id,
+        defaults={
+            'titulo': titulo,
+            'artista': artista,
+            'album_nome': album_nome,
+            'genero': genero,
+            'duracao_ms': duracao_ms,
+            'capa_url': capa_url,
+        }
+    )
+
+    serializer = MusicaSerializer(musica)
+    http_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return Response(serializer.data, status=http_status)
+
+
+@api_view(['POST'])
+def spotify_add_album(request):
+    spotify_id = request.data.get('spotify_id')
+    titulo = request.data.get('titulo', '')
+    artista = request.data.get('artista', '')
+    ano = request.data.get('ano')
+    genero = request.data.get('genero', '')
+    capa_url = request.data.get('capa_url', '')
+    faixas_data = request.data.get('faixas', [])
+
+    if not spotify_id or not titulo:
+        return Response({"error": "spotify_id e titulo são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
+
+    album, created = Album.objects.get_or_create(
+        spotify_id=spotify_id,
+        defaults={
+            'titulo': titulo,
+            'artista': artista,
+            'ano': ano,
+            'genero': genero,
+            'capa_url': capa_url,
+        }
+    )
+
+    if created and faixas_data:
+        for faixa in faixas_data:
+            Faixa.objects.create(
+                album=album,
+                titulo=faixa.get('titulo', ''),
+                duracao_ms=faixa.get('duracao_ms', 0),
+                numero=faixa.get('numero', 1),
+            )
+
+    serializer = AlbumSerializer(album)
+    http_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return Response(serializer.data, status=http_status)
+
+
+# --- Listagem local ---
+
+@api_view(['GET'])
+def listar_musicas(request):
+    musicas = Musica.objects.all().order_by('-criado_em')
+    serializer = MusicaSerializer(musicas, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def listar_albuns(request):
+    albuns = Album.objects.all().order_by('-criado_em')
+    serializer = AlbumSerializer(albuns, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# --- Rotação automática (Lazy) ---
+
+@api_view(['GET'])
+def musica_do_dia(request):
+    hoje = date.today()
+
+    try:
+        entrada = MusicaDoDia.objects.get(data=hoje)
+    except MusicaDoDia.DoesNotExist:
+        trinta_dias_atras = hoje - timedelta(days=30)
+        ids_recentes = MusicaDoDia.objects.filter(
+            data__gte=trinta_dias_atras
+        ).values_list('musica_id', flat=True)
+
+        disponiveis = Musica.objects.exclude(id__in=ids_recentes)
+        if not disponiveis.exists():
+            disponiveis = Musica.objects.all()
+
+        if not disponiveis.exists():
+            return Response({"error": "Nenhuma música cadastrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        musica_escolhida = disponiveis.order_by('?').first()
+        entrada = MusicaDoDia.objects.create(musica=musica_escolhida, data=hoje)
+
+    serializer = MusicaDoDiaSerializer(entrada)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def album_da_semana(request):
+    hoje = date.today()
+    segunda = hoje - timedelta(days=hoje.weekday())
+
+    try:
+        entrada = AlbumDaSemana.objects.get(semana_inicio=segunda)
+    except AlbumDaSemana.DoesNotExist:
+        sessenta_dias_atras = hoje - timedelta(days=60)
+        ids_recentes = AlbumDaSemana.objects.filter(
+            semana_inicio__gte=sessenta_dias_atras
+        ).values_list('album_id', flat=True)
+
+        disponiveis = Album.objects.exclude(id__in=ids_recentes)
+        if not disponiveis.exists():
+            disponiveis = Album.objects.all()
+
+        if not disponiveis.exists():
+            return Response({"error": "Nenhum álbum cadastrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        album_escolhido = disponiveis.order_by('?').first()
+        entrada = AlbumDaSemana.objects.create(album=album_escolhido, semana_inicio=segunda)
+
+    serializer = AlbumDaSemanaSerializer(entrada)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# --- Histórico ---
+
+@api_view(['GET'])
+def historico_musicas(request):
+    entradas = MusicaDoDia.objects.select_related('musica').order_by('-data')[:7]
+    serializer = MusicaDoDiaSerializer(entradas, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def historico_albuns(request):
+    entradas = AlbumDaSemana.objects.select_related('album').order_by('-semana_inicio')[:4]
+    serializer = AlbumDaSemanaSerializer(entradas, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# --- Busca local ---
+
+@api_view(['GET'])
+def busca(request):
+    query = request.query_params.get('q', '')
+    if not query:
+        return Response({"musicas": [], "albuns": []}, status=status.HTTP_200_OK)
+
+    musicas = Musica.objects.filter(
+        Q(titulo__icontains=query) | Q(artista__icontains=query) | Q(genero__icontains=query)
+    )
+    albuns = Album.objects.filter(
+        Q(titulo__icontains=query) | Q(artista__icontains=query) | Q(genero__icontains=query)
+    )
+
+    return Response({
+        "musicas": MusicaSerializer(musicas, many=True).data,
+        "albuns": AlbumSerializer(albuns, many=True).data,
+    }, status=status.HTTP_200_OK)
