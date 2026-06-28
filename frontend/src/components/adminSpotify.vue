@@ -211,8 +211,11 @@ const adicionarAlbum = async (item) => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  align-self: flex-start;
+  width: 100%;
   padding: 10px;
   min-height: 100vh;
+  box-sizing: border-box;
 }
 
 .admin-window {
