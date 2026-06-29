@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.hashers import make_password, check_password
+from django.shortcuts import get_object_or_404
 
 from .models import Usuario
 from .serializers import UsuarioSerializer
@@ -192,6 +193,8 @@ from .serializers import (
     MusicaSerializer, AlbumSerializer,
     MusicaDoDiaSerializer, AlbumDaSemanaSerializer,
 )
+from .models import Review
+from .serializers import ReviewSerializer
 from . import spotify
 
 
@@ -386,3 +389,67 @@ def busca(request):
         "musicas": MusicaSerializer(musicas, many=True).data,
         "albuns": AlbumSerializer(albuns, many=True).data,
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'POST'])
+def reviews_musica(request, musica_id):
+    musica = get_object_or_404(Musica, pk=musica_id)
+
+    if request.method == 'GET':
+        reviews = Review.objects.filter(musica=musica)
+        return Response(ReviewSerializer(reviews, many=True).data, status=status.HTTP_200_OK)
+
+    texto = request.data.get('texto', '').strip()
+    autor_nome = request.data.get('autor_nome', '').strip()
+    usuario_id = request.data.get('usuario_id')
+
+    if not texto or not autor_nome:
+        return Response({'error': 'texto e autor_nome são obrigatórios'}, status=status.HTTP_400_BAD_REQUEST)
+
+    review = Review.objects.create(
+        musica=musica,
+        texto=texto,
+        autor_nome=autor_nome,
+        usuario_id=usuario_id or None,
+    )
+    return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET', 'POST'])
+def reviews_album(request, album_id):
+    album = get_object_or_404(Album, pk=album_id)
+
+    if request.method == 'GET':
+        reviews = Review.objects.filter(album=album)
+        return Response(ReviewSerializer(reviews, many=True).data, status=status.HTTP_200_OK)
+
+    texto = request.data.get('texto', '').strip()
+    autor_nome = request.data.get('autor_nome', '').strip()
+    usuario_id = request.data.get('usuario_id')
+
+    if not texto or not autor_nome:
+        return Response({'error': 'texto e autor_nome são obrigatórios'}, status=status.HTTP_400_BAD_REQUEST)
+
+    review = Review.objects.create(
+        album=album,
+        texto=texto,
+        autor_nome=autor_nome,
+        usuario_id=usuario_id or None,
+    )
+    return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+def review_reaction(request, review_id):
+    review = get_object_or_404(Review, pk=review_id)
+    action = request.data.get('action')
+
+    if action == 'like':
+        review.likes += 1
+    elif action == 'dislike':
+        review.dislikes += 1
+    else:
+        return Response({'error': 'Ação inválida'}, status=status.HTTP_400_BAD_REQUEST)
+
+    review.save(update_fields=['likes', 'dislikes'])
+    return Response(ReviewSerializer(review).data, status=status.HTTP_200_OK)

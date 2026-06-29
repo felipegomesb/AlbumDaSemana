@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import ReviewSection from './ReviewSection.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
 const album = ref(null)
@@ -12,7 +13,7 @@ const formatarDuracao = (ms) => {
   return `${minutos}:${segundos.toString().padStart(2, '0')}`
 }
 
-onMounted(async () => {
+const carregarAlbum = async () => {
   try {
     const response = await fetch(`${apiBase}/album-da-semana/`)
     if (!response.ok) throw new Error('Sem álbum da semana')
@@ -23,6 +24,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(() => {
+  carregarAlbum()
 })
 </script>
 
@@ -54,6 +59,7 @@ onMounted(async () => {
           <p>Artista: {{ album.artista }}</p>
           <p v-if="album.ano">Ano: {{ album.ano }}</p>
           <p v-if="album.genero">Gênero: {{ album.genero }}</p>
+          <p class="contadores">Posts: {{ album.review_count || 0 }} | Likes: {{ album.review_likes || 0 }} | Deslikes: {{ album.review_dislikes || 0 }}</p>
 
           <div v-if="album.faixas && album.faixas.length" class="faixas-section">
             <details>
@@ -68,6 +74,14 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+
+      <ReviewSection
+        v-if="album"
+        target-type="album"
+        :target-id="album.id"
+        titulo="Álbum"
+        @changed="carregarAlbum"
+      />
     </div>
   </div>
 </template>
@@ -101,6 +115,12 @@ onMounted(async () => {
 
 .titulo {
   font-size: 20px;
+}
+
+.contadores {
+  margin-top: 6px;
+  color: #333;
+  font-size: 13px;
 }
 
 .faixas-section {

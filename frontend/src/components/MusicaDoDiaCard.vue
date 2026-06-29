@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import ReviewSection from './ReviewSection.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
 const musica = ref(null)
@@ -12,7 +13,7 @@ const formatarDuracao = (ms) => {
   return `${minutos}:${segundos.toString().padStart(2, '0')}`
 }
 
-onMounted(async () => {
+const carregarMusica = async () => {
   try {
     const response = await fetch(`${apiBase}/musica-do-dia/`)
     if (!response.ok) throw new Error('Sem música do dia')
@@ -23,6 +24,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(() => {
+  carregarMusica()
 })
 </script>
 
@@ -55,8 +60,17 @@ onMounted(async () => {
           <p v-if="musica.album_nome">Álbum: {{ musica.album_nome }}</p>
           <p v-if="musica.genero">Gênero: {{ musica.genero }}</p>
           <p v-if="musica.duracao_ms">Duração: {{ formatarDuracao(musica.duracao_ms) }}</p>
+          <p class="contadores">Posts: {{ musica.review_count || 0 }} | Likes: {{ musica.review_likes || 0 }} | Deslikes: {{ musica.review_dislikes || 0 }}</p>
         </div>
       </div>
+
+      <ReviewSection
+        v-if="musica"
+        target-type="musica"
+        :target-id="musica.id"
+        titulo="Música"
+        @changed="carregarMusica"
+      />
     </div>
   </div>
 </template>
@@ -89,6 +103,12 @@ onMounted(async () => {
 
 .titulo {
   font-size: 18px;
+}
+
+.contadores {
+  margin-top: 6px;
+  color: #333;
+  font-size: 13px;
 }
 
 .loading, .erro {

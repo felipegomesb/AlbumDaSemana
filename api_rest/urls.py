@@ -31,6 +31,11 @@ urlpatterns = [
     # Busca
     path('busca/', views.busca, name='busca'),
 
+    # Reviews
+    path('reviews/musicas/<int:musica_id>/', views.reviews_musica, name='reviews_musica'),
+    path('reviews/albuns/<int:album_id>/', views.reviews_album, name='reviews_album'),
+    path('reviews/<int:review_id>/reaction/', views.review_reaction, name='review_reaction'),
+
     # Ping
     path('ping/', views.ping, name='ping'),
 ]
