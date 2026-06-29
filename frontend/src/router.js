@@ -5,6 +5,7 @@ import Cadastro from './components/cadastroSimples.vue'
 import HomePage from './components/HomePage.vue'
 import BuscaResultados from './components/BuscaResultados.vue'
 import AdminSpotify from './components/adminSpotify.vue'
+import Perfil from './components/Perfil.vue'
 
 const routes = [
   {
@@ -31,6 +32,11 @@ const routes = [
     path: '/admin-spotify',
     name: 'AdminSpotify',
     component: AdminSpotify
+  },
+  {
+    path: '/perfil',
+    name: 'Perfil',
+    component: Perfil
   }
 ]
 

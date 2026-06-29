@@ -47,6 +47,19 @@ const Login = async () => {
       throw new Error('Erro ao realizar login no servidor.')
     }
 
+    const data = await response.json()
+
+    localStorage.setItem(
+      'albumDaSemanaUser',
+      JSON.stringify({
+        id: data.id,
+        user_username: data.user_username,
+        user_email: data.user_email,
+      })
+    )
+
+    window.dispatchEvent(new Event('album-user-changed'))
+
     // 3. Se deu tudo certo, mostramos a mensagem e limpamos o formulário
     success.value = true
     form.value = { user_email: '', user_password: '' }

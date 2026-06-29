@@ -1,15 +1,43 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const searchQuery = ref('')
+const usuario = ref(null)
+
+const carregarUsuario = () => {
+  const savedUser = localStorage.getItem('albumDaSemanaUser')
+  usuario.value = savedUser ? JSON.parse(savedUser) : null
+}
+
+const isLogado = computed(() => Boolean(usuario.value))
 
 const buscar = () => {
   if (searchQuery.value.trim()) {
     router.push({ path: '/busca', query: { q: searchQuery.value.trim() } })
   }
 }
+
+const sair = () => {
+  localStorage.removeItem('albumDaSemanaUser')
+  window.dispatchEvent(new Event('album-user-changed'))
+  carregarUsuario()
+  router.push('/login')
+}
+
+const atualizarUsuario = () => {
+  carregarUsuario()
+}
+
+onMounted(() => {
+  carregarUsuario()
+  window.addEventListener('album-user-changed', atualizarUsuario)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('album-user-changed', atualizarUsuario)
+})
 </script>
 
 <template>
@@ -26,9 +54,13 @@ const buscar = () => {
     <div class="window-body header-body">
       <div class="nav-links">
         <router-link to="/">Home</router-link>
-        <router-link to="/login">Login</router-link>
-        <router-link to="/cadastro">Cadastro</router-link>
+        <router-link v-if="isLogado" to="/perfil">Perfil</router-link>
+        <template v-else>
+          <router-link to="/login">Login</router-link>
+          <router-link to="/cadastro">Cadastro</router-link>
+        </template>
         <router-link to="/admin-spotify">Admin Spotify</router-link>
+        <button v-if="isLogado" type="button" class="logout-button" @click="sair">Sair</button>
       </div>
 
       <form class="search-form" @submit.prevent="buscar">
@@ -78,6 +110,20 @@ const buscar = () => {
 
 .nav-links a.router-link-active {
   font-weight: bold;
+}
+
+.logout-button {
+  border: 0;
+  background: transparent;
+  color: #000;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  text-decoration: underline;
 }
 
 .search-form {
