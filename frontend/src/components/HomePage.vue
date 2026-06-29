@@ -2,6 +2,7 @@
 import HomeHeader from './HomeHeader.vue'
 import MusicaDoDiaCard from './MusicaDoDiaCard.vue'
 import AlbumDaSemanaCard from './AlbumDaSemanaCard.vue'
+import RecentMusicasSection from './RecentMusicasSection.vue'
 import HistoricoSection from './HistoricoSection.vue'
 </script>
 
@@ -9,6 +10,7 @@ import HistoricoSection from './HistoricoSection.vue'
   <div class="home-page">
     <HomeHeader />
     <MusicaDoDiaCard />
+    <RecentMusicasSection />
     <AlbumDaSemanaCard />
     <HistoricoSection />
   </div>

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 // Variáveis de ambiente
 const apiBase = import.meta.env.VITE_API_BASE_URL
@@ -8,6 +9,7 @@ const apiBase = import.meta.env.VITE_API_BASE_URL
 const users = ref([])
 const loading = ref(false)
 const success = ref(false)
+const router = useRouter()
 
 // Dados do formulário
 const form = ref({
@@ -48,6 +50,7 @@ const Login = async () => {
     // 3. Se deu tudo certo, mostramos a mensagem e limpamos o formulário
     success.value = true
     form.value = { user_email: '', user_password: '' }
+    await router.push('/')
     
   } catch (error) {
     console.error('Erro no login:', error)
