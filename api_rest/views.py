@@ -254,7 +254,7 @@ def spotify_add_album(request):
     genero = request.data.get('genero', '')
     capa_url = request.data.get('capa_url', '')
     faixas_data = request.data.get('faixas', [])
-
+    
     if not spotify_id or not titulo:
         return Response({"error": "spotify_id e titulo são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -389,6 +389,38 @@ def busca(request):
         "musicas": MusicaSerializer(musicas, many=True).data,
         "albuns": AlbumSerializer(albuns, many=True).data,
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def react_musica(request, musica_id):
+    musica = get_object_or_404(Musica, pk=musica_id)
+    action = request.data.get('action')
+
+    if action == 'like':
+        musica.likes += 1
+    elif action == 'dislike':
+        musica.dislikes += 1
+    else:
+        return Response({'error': 'Ação inválida'}, status=status.HTTP_400_BAD_REQUEST)
+
+    musica.save(update_fields=['likes', 'dislikes'])
+    return Response(MusicaSerializer(musica).data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def react_album(request, album_id):
+    album = get_object_or_404(Album, pk=album_id)
+    action = request.data.get('action')
+
+    if action == 'like':
+        album.likes += 1
+    elif action == 'dislike':
+        album.dislikes += 1
+    else:
+        return Response({'error': 'Ação inválida'}, status=status.HTTP_400_BAD_REQUEST)
+
+    album.save(update_fields=['likes', 'dislikes'])
+    return Response(AlbumSerializer(album).data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET', 'POST'])

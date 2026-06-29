@@ -26,6 +26,24 @@ const carregarMusica = async () => {
   }
 }
 
+const reagir = async (action) => {
+  if (!musica.value) return
+
+  try {
+    const response = await fetch(`${apiBase}/musicas/${musica.value.id}/react/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    })
+
+    if (!response.ok) throw new Error('Falha ao reagir')
+
+    musica.value = await response.json()
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 onMounted(() => {
   carregarMusica()
 })
@@ -60,7 +78,11 @@ onMounted(() => {
           <p v-if="musica.album_nome">Álbum: {{ musica.album_nome }}</p>
           <p v-if="musica.genero">Gênero: {{ musica.genero }}</p>
           <p v-if="musica.duracao_ms">Duração: {{ formatarDuracao(musica.duracao_ms) }}</p>
-          <p class="contadores">Posts: {{ musica.review_count || 0 }} | Likes: {{ musica.review_likes || 0 }} | Deslikes: {{ musica.review_dislikes || 0 }}</p>
+          <p class="contadores">Posts: {{ musica.review_count || 0 }} | Likes: {{ musica.likes || 0 }} | Deslikes: {{ musica.dislikes || 0 }}</p>
+          <div class="reacoes">
+            <button type="button" @click="reagir('like')">Like</button>
+            <button type="button" @click="reagir('dislike')">Deslike</button>
+          </div>
         </div>
       </div>
 

@@ -18,6 +18,8 @@ class Musica(models.Model):
     duracao_ms = models.IntegerField(default=0)
     capa_url = models.URLField(blank=True, default="")
     spotify_id = models.CharField(max_length=100, unique=True)
+    likes = models.IntegerField(default=0)
+    dislikes = models.IntegerField(default=0)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -34,6 +36,8 @@ class Album(models.Model):
     genero = models.CharField(max_length=100, blank=True, default="")
     capa_url = models.URLField(blank=True, default="")
     spotify_id = models.CharField(max_length=100, unique=True)
+    likes = models.IntegerField(default=0)
+    dislikes = models.IntegerField(default=0)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

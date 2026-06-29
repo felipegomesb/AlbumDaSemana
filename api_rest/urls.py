@@ -19,6 +19,8 @@ urlpatterns = [
     # Catálogo local
     path('musicas/', views.listar_musicas, name='listar_musicas'),
     path('albuns/', views.listar_albuns, name='listar_albuns'),
+    path('musicas/<int:musica_id>/react/', views.react_musica, name='react_musica'),
+    path('albuns/<int:album_id>/react/', views.react_album, name='react_album'),
 
     # Rotação automática
     path('musica-do-dia/', views.musica_do_dia, name='musica_do_dia'),

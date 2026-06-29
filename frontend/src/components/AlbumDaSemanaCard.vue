@@ -26,6 +26,24 @@ const carregarAlbum = async () => {
   }
 }
 
+const reagir = async (action) => {
+  if (!album.value) return
+
+  try {
+    const response = await fetch(`${apiBase}/albuns/${album.value.id}/react/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    })
+
+    if (!response.ok) throw new Error('Falha ao reagir')
+
+    album.value = await response.json()
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 onMounted(() => {
   carregarAlbum()
 })
@@ -59,7 +77,11 @@ onMounted(() => {
           <p>Artista: {{ album.artista }}</p>
           <p v-if="album.ano">Ano: {{ album.ano }}</p>
           <p v-if="album.genero">Gênero: {{ album.genero }}</p>
-          <p class="contadores">Posts: {{ album.review_count || 0 }} | Likes: {{ album.review_likes || 0 }} | Deslikes: {{ album.review_dislikes || 0 }}</p>
+          <p class="contadores">Posts: {{ album.review_count || 0 }} | Likes: {{ album.likes || 0 }} | Deslikes: {{ album.dislikes || 0 }}</p>
+          <div class="reacoes">
+            <button type="button" @click="reagir('like')">Like</button>
+            <button type="button" @click="reagir('dislike')">Deslike</button>
+          </div>
 
           <div v-if="album.faixas && album.faixas.length" class="faixas-section">
             <details>
