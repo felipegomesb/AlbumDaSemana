@@ -6,7 +6,8 @@ from .models import Usuario, Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana, R
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ['id', 'user_username', 'user_email', 'user_password']
+        fields = ['id', 'user_username', 'user_email', 'user_password', 'is_admin']
+        read_only_fields = ['is_admin']
 
 
 class MusicaSerializer(serializers.ModelSerializer):

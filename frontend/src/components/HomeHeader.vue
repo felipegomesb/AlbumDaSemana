@@ -12,6 +12,7 @@ const carregarUsuario = () => {
 }
 
 const isLogado = computed(() => Boolean(usuario.value))
+const isAdmin = computed(() => Boolean(usuario.value?.is_admin))
 
 const buscar = () => {
   if (searchQuery.value.trim()) {
@@ -59,7 +60,7 @@ onBeforeUnmount(() => {
           <router-link to="/login">Login</router-link>
           <router-link to="/cadastro">Cadastro</router-link>
         </template>
-        <router-link to="/admin-spotify">Admin Spotify</router-link>
+        <router-link v-if="isAdmin" to="/admin-spotify">Admin Spotify</router-link>
         <button v-if="isLogado" type="button" class="logout-button" @click="sair">Sair</button>
       </div>
 

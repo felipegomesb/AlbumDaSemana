@@ -1,14 +1,25 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import HomeHeader from './HomeHeader.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
+const router = useRouter()
 
+const usuario = ref(null)
 const searchQuery = ref('')
 const searchType = ref('track')
 const resultados = ref([])
 const loading = ref(false)
 const mensagem = ref('')
+
+onMounted(() => {
+  const saved = localStorage.getItem('albumDaSemanaUser')
+  usuario.value = saved ? JSON.parse(saved) : null
+  if (!usuario.value?.is_admin) {
+    router.push('/')
+  }
+})
 
 const formatarDuracao = (ms) => {
   const minutos = Math.floor(ms / 60000)
@@ -24,7 +35,7 @@ const buscarSpotify = async () => {
 
   try {
     const response = await fetch(
-      `${apiBase}/spotify/search/?q=${encodeURIComponent(searchQuery.value)}&type=${searchType.value}`
+      `${apiBase}/spotify/search/?q=${encodeURIComponent(searchQuery.value)}&type=${searchType.value}&usuario_id=${usuario.value.id}`
     )
     if (!response.ok) {
       mensagem.value = 'Erro ao buscar no Spotify. Verifique as credenciais.'
@@ -70,6 +81,7 @@ const adicionarTrack = async (item) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        usuario_id: usuario.value.id,
         spotify_id: item.spotify_id,
         titulo: item.titulo,
         artista: item.artista,
@@ -80,59 +92,45 @@ const adicionarTrack = async (item) => {
       })
     })
 
+    const data = await response.json()
     if (response.ok) {
-      const data = await response.json()
       mensagem.value = response.status === 201
         ? `Música "${data.titulo}" adicionada!`
         : `Música "${data.titulo}" já existe no catálogo.`
+    } else {
+      mensagem.value = data.error || 'Erro ao adicionar música.'
     }
   } catch (e) {
-    mensagem.value = 'Erro ao adicionar música.'
+    mensagem.value = 'Erro de conexão com o servidor.'
   }
 }
 
 const adicionarAlbum = async (item) => {
   try {
-    const tracksRes = await fetch(
-      `${apiBase}/spotify/search/?q=${encodeURIComponent(item.titulo + ' ' + item.artista)}&type=track`
-    )
-
-    let faixas = []
-    if (tracksRes.ok) {
-      const tracksData = await tracksRes.json()
-      if (tracksData.tracks) {
-        faixas = tracksData.tracks.items
-          .filter(t => t.album?.id === item.spotify_id)
-          .map((t, i) => ({
-            titulo: t.name,
-            duracao_ms: t.duration_ms,
-            numero: t.track_number || i + 1,
-          }))
-      }
-    }
-
     const response = await fetch(`${apiBase}/spotify/add-album/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        usuario_id: usuario.value.id,
         spotify_id: item.spotify_id,
         titulo: item.titulo,
         artista: item.artista,
         ano: item.ano,
         genero: item.genero,
         capa_url: item.capa_url,
-        faixas: faixas,
       })
     })
 
+    const data = await response.json()
     if (response.ok) {
-      const data = await response.json()
       mensagem.value = response.status === 201
         ? `Álbum "${data.titulo}" adicionado com ${data.faixas?.length || 0} faixas!`
         : `Álbum "${data.titulo}" já existe no catálogo.`
+    } else {
+      mensagem.value = data.error || 'Erro ao adicionar álbum.'
     }
   } catch (e) {
-    mensagem.value = 'Erro ao adicionar álbum.'
+    mensagem.value = 'Erro de conexão com o servidor.'
   }
 }
 </script>

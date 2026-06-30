@@ -165,8 +165,10 @@ def register(request):
     if serializer.is_valid():
         user = serializer.save()
         user.user_password = make_password(user.user_password)
+        if not Usuario.objects.exclude(pk=user.pk).exists():
+            user.is_admin = True
         user.save()
-        return Response(serializer.data, status=201)
+        return Response(UsuarioSerializer(user).data, status=201)
 
     return Response(
         {
@@ -198,10 +200,25 @@ from .serializers import ReviewSerializer
 from . import spotify
 
 
+# --- Admin helper ---
+
+def _is_admin(request):
+    user_id = request.query_params.get('usuario_id') or request.data.get('usuario_id')
+    if not user_id:
+        return False
+    try:
+        return Usuario.objects.get(pk=user_id).is_admin
+    except (Usuario.DoesNotExist, ValueError, TypeError):
+        return False
+
+
 # --- Spotify Search & Add ---
 
 @api_view(['GET'])
 def spotify_search(request):
+    if not _is_admin(request):
+        return Response({"error": "Acesso restrito a administradores"}, status=status.HTTP_403_FORBIDDEN)
+
     query = request.query_params.get('q', '')
     search_type = request.query_params.get('type', 'track')
 
@@ -217,6 +234,9 @@ def spotify_search(request):
 
 @api_view(['POST'])
 def spotify_add_track(request):
+    if not _is_admin(request):
+        return Response({"error": "Acesso restrito a administradores"}, status=status.HTTP_403_FORBIDDEN)
+
     spotify_id = request.data.get('spotify_id')
     titulo = request.data.get('titulo', '')
     artista = request.data.get('artista', '')
@@ -247,14 +267,16 @@ def spotify_add_track(request):
 
 @api_view(['POST'])
 def spotify_add_album(request):
+    if not _is_admin(request):
+        return Response({"error": "Acesso restrito a administradores"}, status=status.HTTP_403_FORBIDDEN)
+
     spotify_id = request.data.get('spotify_id')
     titulo = request.data.get('titulo', '')
     artista = request.data.get('artista', '')
     ano = request.data.get('ano')
     genero = request.data.get('genero', '')
     capa_url = request.data.get('capa_url', '')
-    faixas_data = request.data.get('faixas', [])
-    
+
     if not spotify_id or not titulo:
         return Response({"error": "spotify_id e titulo são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -269,14 +291,16 @@ def spotify_add_album(request):
         }
     )
 
-    if created and faixas_data:
-        for faixa in faixas_data:
-            Faixa.objects.create(
-                album=album,
-                titulo=faixa.get('titulo', ''),
-                duracao_ms=faixa.get('duracao_ms', 0),
-                numero=faixa.get('numero', 1),
-            )
+    if created:
+        tracks_response = spotify.get_album_tracks(spotify_id)
+        if tracks_response and 'items' in tracks_response:
+            for i, t in enumerate(tracks_response['items']):
+                Faixa.objects.create(
+                    album=album,
+                    titulo=t.get('name', ''),
+                    duracao_ms=t.get('duration_ms', 0),
+                    numero=t.get('track_number', i + 1),
+                )
 
     serializer = AlbumSerializer(album)
     http_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
