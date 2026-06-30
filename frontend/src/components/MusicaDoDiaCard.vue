@@ -4,6 +4,8 @@ import ReviewSection from './ReviewSection.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
 const musica = ref(null)
+const userReaction = ref(null)
+const usuario = ref(null)
 const loading = ref(true)
 const erro = ref('')
 
@@ -15,10 +17,14 @@ const formatarDuracao = (ms) => {
 
 const carregarMusica = async () => {
   try {
-    const response = await fetch(`${apiBase}/musica-do-dia/`)
+    const saved = localStorage.getItem('albumDaSemanaUser')
+    usuario.value = saved ? JSON.parse(saved) : null
+    const uid = usuario.value?.id || ''
+    const response = await fetch(`${apiBase}/musica-do-dia/?usuario_id=${uid}`)
     if (!response.ok) throw new Error('Sem música do dia')
     const data = await response.json()
     musica.value = data.musica
+    userReaction.value = data.user_reaction || null
   } catch (e) {
     erro.value = 'Nenhuma música cadastrada ainda.'
   } finally {
@@ -27,18 +33,20 @@ const carregarMusica = async () => {
 }
 
 const reagir = async (action) => {
-  if (!musica.value) return
+  if (!musica.value || !usuario.value) return
 
   try {
     const response = await fetch(`${apiBase}/musicas/${musica.value.id}/react/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action })
+      body: JSON.stringify({ action, usuario_id: usuario.value.id })
     })
 
     if (!response.ok) throw new Error('Falha ao reagir')
 
-    musica.value = await response.json()
+    const data = await response.json()
+    musica.value = data
+    userReaction.value = data.user_reaction
   } catch (error) {
     console.error(error)
   }
@@ -78,10 +86,10 @@ onMounted(() => {
           <p v-if="musica.album_nome">Álbum: {{ musica.album_nome }}</p>
           <p v-if="musica.genero">Gênero: {{ musica.genero }}</p>
           <p v-if="musica.duracao_ms">Duração: {{ formatarDuracao(musica.duracao_ms) }}</p>
-          <p class="contadores">Posts: {{ musica.review_count || 0 }} | Likes: {{ musica.likes || 0 }} | Deslikes: {{ musica.dislikes || 0 }}</p>
-          <div class="reacoes">
-            <button type="button" @click="reagir('like')">Like</button>
-            <button type="button" @click="reagir('dislike')">Deslike</button>
+          <p class="contadores">Posts: {{ musica.review_count || 0 }}</p>
+          <div v-if="usuario" class="reacoes">
+            <button type="button" :class="{ ativo: userReaction === 'like' }" @click="reagir('like')">Like {{ musica.likes || 0 }}</button>
+            <button type="button" :class="{ ativo: userReaction === 'dislike' }" @click="reagir('dislike')">Deslike {{ musica.dislikes || 0 }}</button>
           </div>
         </div>
       </div>
@@ -131,6 +139,17 @@ onMounted(() => {
   margin-top: 6px;
   color: #333;
   font-size: 13px;
+}
+
+.reacoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.reacoes button.ativo {
+  font-weight: bold;
+  box-shadow: inset 1px 1px 2px #000;
 }
 
 .loading, .erro {

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Usuario, Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana
+from .models import Usuario, Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana, Reacao
 
 
 admin.site.register(Usuario)
@@ -31,3 +31,8 @@ class MusicaDoDiaAdmin(admin.ModelAdmin):
 @admin.register(AlbumDaSemana)
 class AlbumDaSemanaAdmin(admin.ModelAdmin):
     list_display = ['semana_inicio', 'album']
+
+
+@admin.register(Reacao)
+class ReacaoAdmin(admin.ModelAdmin):
+    list_display = ['usuario', 'tipo', 'musica', 'album', 'review']

@@ -75,62 +75,98 @@ const buscarSpotify = async () => {
   }
 }
 
+const salvarTrack = async (item) => {
+  const response = await fetch(`${apiBase}/spotify/add-track/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      usuario_id: usuario.value.id,
+      spotify_id: item.spotify_id,
+      titulo: item.titulo,
+      artista: item.artista,
+      album_nome: item.album_nome,
+      genero: item.genero,
+      duracao_ms: item.duracao_ms,
+      capa_url: item.capa_url,
+    })
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Erro ao adicionar música.')
+  return data
+}
+
+const salvarAlbum = async (item) => {
+  const response = await fetch(`${apiBase}/spotify/add-album/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      usuario_id: usuario.value.id,
+      spotify_id: item.spotify_id,
+      titulo: item.titulo,
+      artista: item.artista,
+      ano: item.ano,
+      genero: item.genero,
+      capa_url: item.capa_url,
+    })
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Erro ao adicionar álbum.')
+  return data
+}
+
 const adicionarTrack = async (item) => {
   try {
-    const response = await fetch(`${apiBase}/spotify/add-track/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        usuario_id: usuario.value.id,
-        spotify_id: item.spotify_id,
-        titulo: item.titulo,
-        artista: item.artista,
-        album_nome: item.album_nome,
-        genero: item.genero,
-        duracao_ms: item.duracao_ms,
-        capa_url: item.capa_url,
-      })
-    })
-
-    const data = await response.json()
-    if (response.ok) {
-      mensagem.value = response.status === 201
-        ? `Música "${data.titulo}" adicionada!`
-        : `Música "${data.titulo}" já existe no catálogo.`
-    } else {
-      mensagem.value = data.error || 'Erro ao adicionar música.'
-    }
+    const data = await salvarTrack(item)
+    mensagem.value = `Música "${data.titulo}" adicionada ao catálogo!`
   } catch (e) {
-    mensagem.value = 'Erro de conexão com o servidor.'
+    mensagem.value = e.message || 'Erro de conexão com o servidor.'
   }
 }
 
 const adicionarAlbum = async (item) => {
   try {
-    const response = await fetch(`${apiBase}/spotify/add-album/`, {
+    const data = await salvarAlbum(item)
+    mensagem.value = `Álbum "${data.titulo}" adicionado com ${data.faixas?.length || 0} faixas!`
+  } catch (e) {
+    mensagem.value = e.message || 'Erro de conexão com o servidor.'
+  }
+}
+
+const definirMusicaDoDia = async (item) => {
+  try {
+    const musica = await salvarTrack(item)
+    const response = await fetch(`${apiBase}/musica-do-dia/definir/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        usuario_id: usuario.value.id,
-        spotify_id: item.spotify_id,
-        titulo: item.titulo,
-        artista: item.artista,
-        ano: item.ano,
-        genero: item.genero,
-        capa_url: item.capa_url,
-      })
+      body: JSON.stringify({ usuario_id: usuario.value.id, musica_id: musica.id })
     })
-
     const data = await response.json()
     if (response.ok) {
-      mensagem.value = response.status === 201
-        ? `Álbum "${data.titulo}" adicionado com ${data.faixas?.length || 0} faixas!`
-        : `Álbum "${data.titulo}" já existe no catálogo.`
+      mensagem.value = `"${musica.titulo}" definida como Música do Dia!`
     } else {
-      mensagem.value = data.error || 'Erro ao adicionar álbum.'
+      mensagem.value = data.error || 'Erro ao definir música do dia.'
     }
   } catch (e) {
-    mensagem.value = 'Erro de conexão com o servidor.'
+    mensagem.value = e.message || 'Erro de conexão com o servidor.'
+  }
+}
+
+const definirAlbumDaSemana = async (item) => {
+  try {
+    const album = await salvarAlbum(item)
+    const response = await fetch(`${apiBase}/album-da-semana/definir/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario_id: usuario.value.id, album_id: album.id })
+    })
+    const data = await response.json()
+    if (response.ok) {
+      mensagem.value = `"${album.titulo}" definido como Álbum da Semana!`
+    } else {
+      mensagem.value = data.error || 'Erro ao definir álbum da semana.'
+    }
+  } catch (e) {
+    mensagem.value = e.message || 'Erro de conexão com o servidor.'
   }
 }
 </script>
@@ -183,20 +219,16 @@ const adicionarAlbum = async (item) => {
               <span v-if="item.ano" class="detalhe">{{ item.ano }}</span>
               <span v-if="item.total_tracks" class="detalhe">{{ item.total_tracks }} faixas</span>
             </div>
-            <button
-              v-if="item.tipo === 'track'"
-              @click="adicionarTrack(item)"
-              class="btn-adicionar"
-            >
-              Adicionar
-            </button>
-            <button
-              v-else
-              @click="adicionarAlbum(item)"
-              class="btn-adicionar"
-            >
-              Adicionar
-            </button>
+            <div class="btn-group">
+              <template v-if="item.tipo === 'track'">
+                <button @click="adicionarTrack(item)" class="btn-adicionar">Adicionar</button>
+                <button @click="definirMusicaDoDia(item)" class="btn-destaque">Musica do Dia</button>
+              </template>
+              <template v-else>
+                <button @click="adicionarAlbum(item)" class="btn-adicionar">Adicionar</button>
+                <button @click="definirAlbumDaSemana(item)" class="btn-destaque">Album da Semana</button>
+              </template>
+            </div>
           </div>
         </div>
       </div>
@@ -277,8 +309,15 @@ const adicionarAlbum = async (item) => {
   color: #666;
 }
 
-.btn-adicionar {
-  min-width: 80px;
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   align-self: center;
+}
+
+.btn-adicionar, .btn-destaque {
+  min-width: 120px;
+  font-size: 12px;
 }
 </style>

@@ -190,7 +190,7 @@ def ping(request):
 
 from datetime import date, timedelta
 from django.db.models import Q
-from .models import Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana
+from .models import Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana, Reacao
 from .serializers import (
     MusicaSerializer, AlbumSerializer,
     MusicaDoDiaSerializer, AlbumDaSemanaSerializer,
@@ -348,7 +348,17 @@ def musica_do_dia(request):
         entrada = MusicaDoDia.objects.create(musica=musica_escolhida, data=hoje)
 
     serializer = MusicaDoDiaSerializer(entrada)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    data = serializer.data
+
+    usuario_id = request.query_params.get('usuario_id')
+    if usuario_id:
+        try:
+            reacao = Reacao.objects.get(usuario_id=usuario_id, musica=entrada.musica)
+            data['user_reaction'] = reacao.tipo
+        except (Reacao.DoesNotExist, ValueError):
+            data['user_reaction'] = None
+
+    return Response(data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -375,6 +385,59 @@ def album_da_semana(request):
         entrada = AlbumDaSemana.objects.create(album=album_escolhido, semana_inicio=segunda)
 
     serializer = AlbumDaSemanaSerializer(entrada)
+    data = serializer.data
+
+    usuario_id = request.query_params.get('usuario_id')
+    if usuario_id:
+        try:
+            reacao = Reacao.objects.get(usuario_id=usuario_id, album=entrada.album)
+            data['user_reaction'] = reacao.tipo
+        except (Reacao.DoesNotExist, ValueError):
+            data['user_reaction'] = None
+
+    return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def definir_album_da_semana(request):
+    if not _is_admin(request):
+        return Response({"error": "Acesso restrito a administradores"}, status=status.HTTP_403_FORBIDDEN)
+
+    album_id = request.data.get('album_id')
+    if not album_id:
+        return Response({"error": "album_id é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+
+    album = get_object_or_404(Album, pk=album_id)
+    hoje = date.today()
+    segunda = hoje - timedelta(days=hoje.weekday())
+
+    entrada, _ = AlbumDaSemana.objects.update_or_create(
+        semana_inicio=segunda,
+        defaults={'album': album}
+    )
+
+    serializer = AlbumDaSemanaSerializer(entrada)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def definir_musica_do_dia(request):
+    if not _is_admin(request):
+        return Response({"error": "Acesso restrito a administradores"}, status=status.HTTP_403_FORBIDDEN)
+
+    musica_id = request.data.get('musica_id')
+    if not musica_id:
+        return Response({"error": "musica_id é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+
+    musica = get_object_or_404(Musica, pk=musica_id)
+    hoje = date.today()
+
+    entrada, _ = MusicaDoDia.objects.update_or_create(
+        data=hoje,
+        defaults={'musica': musica}
+    )
+
+    serializer = MusicaDoDiaSerializer(entrada)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -415,36 +478,76 @@ def busca(request):
     }, status=status.HTTP_200_OK)
 
 
+def _toggle_reaction(usuario_id, target_field, target_obj, action):
+    usuario = get_object_or_404(Usuario, pk=usuario_id)
+    filter_kwargs = {'usuario': usuario, target_field: target_obj}
+
+    try:
+        reacao = Reacao.objects.get(**filter_kwargs)
+        if reacao.tipo == action:
+            reacao.delete()
+            user_reaction = None
+        else:
+            reacao.tipo = action
+            reacao.save()
+            user_reaction = action
+    except Reacao.DoesNotExist:
+        Reacao.objects.create(usuario=usuario, tipo=action, **{target_field: target_obj})
+        user_reaction = action
+
+    target_obj.likes = Reacao.objects.filter(**{target_field: target_obj}, tipo='like').count()
+    target_obj.dislikes = Reacao.objects.filter(**{target_field: target_obj}, tipo='dislike').count()
+    target_obj.save(update_fields=['likes', 'dislikes'])
+
+    return user_reaction
+
+
 @api_view(['POST'])
 def react_musica(request, musica_id):
     musica = get_object_or_404(Musica, pk=musica_id)
     action = request.data.get('action')
+    usuario_id = request.data.get('usuario_id')
 
-    if action == 'like':
-        musica.likes += 1
-    elif action == 'dislike':
-        musica.dislikes += 1
-    else:
+    if action not in ('like', 'dislike'):
         return Response({'error': 'Ação inválida'}, status=status.HTTP_400_BAD_REQUEST)
+    if not usuario_id:
+        return Response({'error': 'Faça login para reagir'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    musica.save(update_fields=['likes', 'dislikes'])
-    return Response(MusicaSerializer(musica).data, status=status.HTTP_200_OK)
+    user_reaction = _toggle_reaction(usuario_id, 'musica', musica, action)
+    data = MusicaSerializer(musica).data
+    data['user_reaction'] = user_reaction
+    return Response(data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
 def react_album(request, album_id):
     album = get_object_or_404(Album, pk=album_id)
     action = request.data.get('action')
+    usuario_id = request.data.get('usuario_id')
 
-    if action == 'like':
-        album.likes += 1
-    elif action == 'dislike':
-        album.dislikes += 1
-    else:
+    if action not in ('like', 'dislike'):
         return Response({'error': 'Ação inválida'}, status=status.HTTP_400_BAD_REQUEST)
+    if not usuario_id:
+        return Response({'error': 'Faça login para reagir'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    album.save(update_fields=['likes', 'dislikes'])
-    return Response(AlbumSerializer(album).data, status=status.HTTP_200_OK)
+    user_reaction = _toggle_reaction(usuario_id, 'album', album, action)
+    data = AlbumSerializer(album).data
+    data['user_reaction'] = user_reaction
+    return Response(data, status=status.HTTP_200_OK)
+
+
+def _add_user_reactions_to_reviews(reviews_data, usuario_id):
+    if not usuario_id:
+        return
+    review_ids = [r['id'] for r in reviews_data]
+    user_reactions = dict(
+        Reacao.objects.filter(
+            usuario_id=usuario_id,
+            review_id__in=review_ids
+        ).values_list('review_id', 'tipo')
+    )
+    for r in reviews_data:
+        r['user_reaction'] = user_reactions.get(r['id'])
 
 
 @api_view(['GET', 'POST'])
@@ -453,7 +556,9 @@ def reviews_musica(request, musica_id):
 
     if request.method == 'GET':
         reviews = Review.objects.filter(musica=musica)
-        return Response(ReviewSerializer(reviews, many=True).data, status=status.HTTP_200_OK)
+        data = ReviewSerializer(reviews, many=True).data
+        _add_user_reactions_to_reviews(data, request.query_params.get('usuario_id'))
+        return Response(data, status=status.HTTP_200_OK)
 
     texto = request.data.get('texto', '').strip()
     autor_nome = request.data.get('autor_nome', '').strip()
@@ -477,7 +582,9 @@ def reviews_album(request, album_id):
 
     if request.method == 'GET':
         reviews = Review.objects.filter(album=album)
-        return Response(ReviewSerializer(reviews, many=True).data, status=status.HTTP_200_OK)
+        data = ReviewSerializer(reviews, many=True).data
+        _add_user_reactions_to_reviews(data, request.query_params.get('usuario_id'))
+        return Response(data, status=status.HTTP_200_OK)
 
     texto = request.data.get('texto', '').strip()
     autor_nome = request.data.get('autor_nome', '').strip()
@@ -499,13 +606,14 @@ def reviews_album(request, album_id):
 def review_reaction(request, review_id):
     review = get_object_or_404(Review, pk=review_id)
     action = request.data.get('action')
+    usuario_id = request.data.get('usuario_id')
 
-    if action == 'like':
-        review.likes += 1
-    elif action == 'dislike':
-        review.dislikes += 1
-    else:
+    if action not in ('like', 'dislike'):
         return Response({'error': 'Ação inválida'}, status=status.HTTP_400_BAD_REQUEST)
+    if not usuario_id:
+        return Response({'error': 'Faça login para reagir'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    review.save(update_fields=['likes', 'dislikes'])
-    return Response(ReviewSerializer(review).data, status=status.HTTP_200_OK)
+    user_reaction = _toggle_reaction(usuario_id, 'review', review, action)
+    data = ReviewSerializer(review).data
+    data['user_reaction'] = user_reaction
+    return Response(data, status=status.HTTP_200_OK)

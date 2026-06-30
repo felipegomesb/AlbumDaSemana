@@ -41,7 +41,8 @@ const carregarReviews = async () => {
   mensagem.value = ''
 
   try {
-    const response = await fetch(endpoint.value)
+    const uid = usuario.value?.id || ''
+    const response = await fetch(`${endpoint.value}?usuario_id=${uid}`)
     if (!response.ok) {
       throw new Error('Falha ao carregar reviews')
     }
@@ -92,11 +93,16 @@ const publicarReview = async () => {
 }
 
 const reagir = async (reviewId, action) => {
+  if (!usuario.value) {
+    mensagem.value = 'Faça login para reagir.'
+    return
+  }
+
   try {
     const response = await fetch(`${apiBase}/reviews/${reviewId}/reaction/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, usuario_id: usuario.value.id }),
     })
 
     if (!response.ok) {
@@ -163,9 +169,9 @@ watch(() => props.targetId, () => {
             <span>{{ formatarData(review.criado_em) }}</span>
           </div>
           <p class="review-texto">{{ review.texto }}</p>
-          <div class="review-reacoes">
-            <button type="button" @click="reagir(review.id, 'like')">Like {{ review.likes }}</button>
-            <button type="button" @click="reagir(review.id, 'dislike')">Deslike {{ review.dislikes }}</button>
+          <div v-if="usuario" class="review-reacoes">
+            <button type="button" :class="{ ativo: review.user_reaction === 'like' }" @click="reagir(review.id, 'like')">Like {{ review.likes }}</button>
+            <button type="button" :class="{ ativo: review.user_reaction === 'dislike' }" @click="reagir(review.id, 'dislike')">Deslike {{ review.dislikes }}</button>
           </div>
         </article>
       </div>
@@ -243,5 +249,10 @@ watch(() => props.targetId, () => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.review-reacoes button.ativo {
+  font-weight: bold;
+  box-shadow: inset 1px 1px 2px #000;
 }
 </style>

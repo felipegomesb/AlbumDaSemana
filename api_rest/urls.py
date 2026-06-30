@@ -24,7 +24,9 @@ urlpatterns = [
 
     # Rotação automática
     path('musica-do-dia/', views.musica_do_dia, name='musica_do_dia'),
+    path('musica-do-dia/definir/', views.definir_musica_do_dia, name='definir_musica_do_dia'),
     path('album-da-semana/', views.album_da_semana, name='album_da_semana'),
+    path('album-da-semana/definir/', views.definir_album_da_semana, name='definir_album_da_semana'),
 
     # Histórico
     path('historico/musicas/', views.historico_musicas, name='historico_musicas'),

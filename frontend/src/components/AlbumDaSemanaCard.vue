@@ -4,6 +4,8 @@ import ReviewSection from './ReviewSection.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
 const album = ref(null)
+const userReaction = ref(null)
+const usuario = ref(null)
 const loading = ref(true)
 const erro = ref('')
 
@@ -15,10 +17,14 @@ const formatarDuracao = (ms) => {
 
 const carregarAlbum = async () => {
   try {
-    const response = await fetch(`${apiBase}/album-da-semana/`)
+    const saved = localStorage.getItem('albumDaSemanaUser')
+    usuario.value = saved ? JSON.parse(saved) : null
+    const uid = usuario.value?.id || ''
+    const response = await fetch(`${apiBase}/album-da-semana/?usuario_id=${uid}`)
     if (!response.ok) throw new Error('Sem álbum da semana')
     const data = await response.json()
     album.value = data.album
+    userReaction.value = data.user_reaction || null
   } catch (e) {
     erro.value = 'Nenhum álbum cadastrado ainda.'
   } finally {
@@ -27,18 +33,20 @@ const carregarAlbum = async () => {
 }
 
 const reagir = async (action) => {
-  if (!album.value) return
+  if (!album.value || !usuario.value) return
 
   try {
     const response = await fetch(`${apiBase}/albuns/${album.value.id}/react/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action })
+      body: JSON.stringify({ action, usuario_id: usuario.value.id })
     })
 
     if (!response.ok) throw new Error('Falha ao reagir')
 
-    album.value = await response.json()
+    const data = await response.json()
+    album.value = data
+    userReaction.value = data.user_reaction
   } catch (error) {
     console.error(error)
   }
@@ -77,10 +85,10 @@ onMounted(() => {
           <p>Artista: {{ album.artista }}</p>
           <p v-if="album.ano">Ano: {{ album.ano }}</p>
           <p v-if="album.genero">Gênero: {{ album.genero }}</p>
-          <p class="contadores">Posts: {{ album.review_count || 0 }} | Likes: {{ album.likes || 0 }} | Deslikes: {{ album.dislikes || 0 }}</p>
-          <div class="reacoes">
-            <button type="button" @click="reagir('like')">Like</button>
-            <button type="button" @click="reagir('dislike')">Deslike</button>
+          <p class="contadores">Posts: {{ album.review_count || 0 }}</p>
+          <div v-if="usuario" class="reacoes">
+            <button type="button" :class="{ ativo: userReaction === 'like' }" @click="reagir('like')">Like {{ album.likes || 0 }}</button>
+            <button type="button" :class="{ ativo: userReaction === 'dislike' }" @click="reagir('dislike')">Deslike {{ album.dislikes || 0 }}</button>
           </div>
 
           <div v-if="album.faixas && album.faixas.length" class="faixas-section">
@@ -163,6 +171,17 @@ onMounted(() => {
 .duracao {
   color: #666;
   margin-left: 8px;
+}
+
+.reacoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.reacoes button.ativo {
+  font-weight: bold;
+  box-shadow: inset 1px 1px 2px #000;
 }
 
 .loading, .erro {

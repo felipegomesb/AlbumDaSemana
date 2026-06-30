@@ -119,3 +119,18 @@ class Review(models.Model):
 
     class Meta:
         ordering = ['-criado_em']
+
+
+class Reacao(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    musica = models.ForeignKey(Musica, on_delete=models.CASCADE, null=True, blank=True)
+    album = models.ForeignKey(Album, on_delete=models.CASCADE, null=True, blank=True)
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, null=True, blank=True)
+    tipo = models.CharField(max_length=10)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['usuario', 'musica'], name='unique_reacao_musica', condition=models.Q(musica__isnull=False)),
+            models.UniqueConstraint(fields=['usuario', 'album'], name='unique_reacao_album', condition=models.Q(album__isnull=False)),
+            models.UniqueConstraint(fields=['usuario', 'review'], name='unique_reacao_review', condition=models.Q(review__isnull=False)),
+        ]
