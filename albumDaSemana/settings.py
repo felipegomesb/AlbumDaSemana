@@ -152,3 +152,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:8000"
 ]
+
+SPOTIFY_CLIENT_ID = env_get('SPOTIFY_CLIENT_ID', default='')
+SPOTIFY_CLIENT_SECRET = env_get('SPOTIFY_CLIENT_SECRET', default='')
