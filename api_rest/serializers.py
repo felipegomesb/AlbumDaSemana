@@ -1,13 +1,40 @@
 from rest_framework import serializers
 from django.db.models import Sum
+from django.contrib.auth.hashers import make_password
 from .models import Usuario, Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana, Review
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ['id', 'user_username', 'user_email', 'user_password', 'is_admin']
+        fields = [
+            'id', 'user_username', 'user_email', 'user_password',
+            'user_bio', 'user_avatar', 'is_admin'
+        ]
         read_only_fields = ['is_admin']
+        extra_kwargs = {
+            'user_password': {'write_only': True},
+        }
+
+    def create(self, validated_data):
+        password = validated_data.pop('user_password', '')
+        usuario = Usuario(**validated_data)
+        if password:
+            usuario.user_password = make_password(password)
+        usuario.save()
+        return usuario
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('user_password', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if password:
+            instance.user_password = make_password(password)
+
+        instance.save()
+        return instance
 
 
 class MusicaSerializer(serializers.ModelSerializer):
@@ -81,12 +108,15 @@ class AlbumDaSemanaSerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     usuario_username = serializers.SerializerMethodField()
+    alvo_tipo = serializers.SerializerMethodField()
+    alvo_titulo = serializers.SerializerMethodField()
+    alvo_artista = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
         fields = [
             'id', 'usuario', 'usuario_username', 'autor_nome', 'musica', 'album',
-            'texto', 'likes', 'dislikes', 'criado_em'
+            'texto', 'likes', 'dislikes', 'criado_em', 'alvo_tipo', 'alvo_titulo', 'alvo_artista'
         ]
         read_only_fields = ['likes', 'dislikes', 'criado_em']
 
@@ -94,4 +124,25 @@ class ReviewSerializer(serializers.ModelSerializer):
         if obj.usuario:
             return obj.usuario.user_username
         return obj.autor_nome
+
+    def get_alvo_tipo(self, obj):
+        if obj.musica:
+            return 'musica'
+        if obj.album:
+            return 'album'
+        return None
+
+    def get_alvo_titulo(self, obj):
+        if obj.musica:
+            return obj.musica.titulo
+        if obj.album:
+            return obj.album.titulo
+        return None
+
+    def get_alvo_artista(self, obj):
+        if obj.musica:
+            return obj.musica.artista
+        if obj.album:
+            return obj.album.artista
+        return None
 
