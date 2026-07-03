@@ -55,6 +55,8 @@ const Login = async () => {
         id: data.id,
         user_username: data.user_username,
         user_email: data.user_email,
+        user_bio: data.user_bio || '',
+        user_avatar: data.user_avatar || '',
         is_admin: data.is_admin,
       })
     )

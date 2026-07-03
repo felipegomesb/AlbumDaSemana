@@ -64,6 +64,41 @@ def get_user_by_pk(request, pk):
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
+def _perfil_payload(usuario):
+    reviews = Review.objects.filter(usuario=usuario).select_related('musica', 'album').order_by('-criado_em')
+    payload = UsuarioSerializer(usuario).data
+    payload['review_count'] = reviews.count()
+    payload['reviews'] = ReviewSerializer(reviews, many=True).data
+    return payload
+
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+def perfil_usuario(request, pk):
+    try:
+        usuario = Usuario.objects.get(pk=pk)
+    except Usuario.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        return Response(_perfil_payload(usuario), status=status.HTTP_200_OK)
+
+    if request.method in ['PUT', 'PATCH']:
+        serializer = UsuarioSerializer(usuario, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            usuario.refresh_from_db()
+            return Response(_perfil_payload(usuario), status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'DELETE':
+        usuario.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
 #USER MANAGER
 @api_view(['GET', 'POST', 'PUT', 'DELETE'])
 def user_manager(request, pk=None):
@@ -150,8 +185,12 @@ def login(request):
 
     try:
         user = Usuario.objects.get(user_email=email)
-        if not check_password(password, user.user_password):
-            return Response({"error": "Credenciais inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
+        if not check_password(password, user.user_password): 
+            if user.user_password == password:
+                user.user_password = make_password(password)
+                user.save(update_fields=['user_password'])
+            else:
+                return Response({"error": "Credenciais inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
         serializer = UsuarioSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Usuario.DoesNotExist:
@@ -164,7 +203,6 @@ def register(request):
 
     if serializer.is_valid():
         user = serializer.save()
-        user.user_password = make_password(user.user_password)
         if not Usuario.objects.exclude(pk=user.pk).exists():
             user.is_admin = True
         user.save()
@@ -455,6 +493,13 @@ def historico_albuns(request):
     entradas = AlbumDaSemana.objects.select_related('album').order_by('-semana_inicio')[:4]
     serializer = AlbumDaSemanaSerializer(entradas, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def user_reviews(request, pk):
+    usuario = get_object_or_404(Usuario, pk=pk)
+    reviews = Review.objects.filter(usuario=usuario).select_related('musica', 'album').order_by('-criado_em')
+    return Response(ReviewSerializer(reviews, many=True).data, status=status.HTTP_200_OK)
 
 
 # --- Busca local ---

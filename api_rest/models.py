@@ -5,6 +5,8 @@ class Usuario(models.Model):
     user_username = models.CharField(max_length=100, unique=True, default="")
     user_email = models.EmailField(unique=True, default="", max_length=254)
     user_password = models.CharField(max_length=100, default="")
+    user_bio = models.TextField(blank=True, default="")
+    user_avatar = models.FileField(upload_to='avatars/', blank=True, null=True)
     is_admin = models.BooleanField(default=False)
 
     def __str__(self):
