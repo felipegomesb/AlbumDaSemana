@@ -19,12 +19,14 @@ const props = defineProps({
 const emit = defineEmits(['changed'])
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
+const baseUrl = computed(() => (apiBase || '').replace(/\/api\/?$/, ''))
 const usuario = ref(null)
 const reviews = ref([])
 const loading = ref(false)
 const enviando = ref(false)
 const mensagem = ref('')
 const novoTexto = ref('')
+const isMinimized = ref(false)
 
 const endpoint = computed(() => {
   const tipo = props.targetType === 'album' ? 'albuns' : 'musicas'
@@ -34,6 +36,17 @@ const endpoint = computed(() => {
 const carregarUsuario = () => {
   const savedUser = localStorage.getItem('albumDaSemanaUser')
   usuario.value = savedUser ? JSON.parse(savedUser) : null
+}
+
+const normalizarAvatar = (valor) => {
+  if (!valor) return ''
+  if (valor.startsWith('http://') || valor.startsWith('https://') || valor.startsWith('blob:')) {
+    return valor
+  }
+  if (valor.startsWith('/')) {
+    return `${baseUrl.value}${valor}`
+  }
+  return `${baseUrl.value}/${valor}`
 }
 
 const carregarReviews = async () => {
@@ -136,13 +149,13 @@ watch(() => props.targetId, () => {
     <div class="title-bar">
       <div class="title-bar-text">Reviews de {{ titulo }}</div>
       <div class="title-bar-controls">
-        <button aria-label="Minimize"></button>
+        <button type="button" aria-label="Minimize" @click="isMinimized = !isMinimized"></button>
         <button aria-label="Maximize"></button>
         <button aria-label="Close"></button>
       </div>
     </div>
 
-    <div class="window-body">
+    <div class="window-body" v-show="!isMinimized">
       <form class="review-form" @submit.prevent="publicarReview">
         <textarea
           v-model="novoTexto"
@@ -165,7 +178,18 @@ watch(() => props.targetId, () => {
       <div v-else-if="reviews.length" class="reviews-lista">
         <article v-for="review in reviews" :key="review.id" class="review-item">
           <div class="review-topo">
-            <strong>{{ review.usuario_username }}</strong>
+            <div class="review-autor">
+              <img
+                v-if="review.usuario_avatar"
+                :src="normalizarAvatar(review.usuario_avatar)"
+                :alt="review.usuario_username"
+                class="avatar-quadrado"
+              />
+              <div v-else class="avatar-quadrado placeholder">
+                {{ review.usuario_username?.charAt(0)?.toUpperCase() }}
+              </div>
+              <strong>{{ review.usuario_username }}</strong>
+            </div>
             <span>{{ formatarData(review.criado_em) }}</span>
           </div>
           <p class="review-texto">{{ review.texto }}</p>
@@ -235,9 +259,34 @@ watch(() => props.targetId, () => {
 .review-topo {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
   font-size: 12px;
   color: #666;
+}
+
+.review-autor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-quadrado {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border: 1px solid #000;
+  flex-shrink: 0;
+}
+
+.avatar-quadrado.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d6d6d6;
+  color: #000;
+  font-size: 13px;
+  font-weight: bold;
 }
 
 .review-texto {

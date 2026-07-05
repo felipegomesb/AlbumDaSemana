@@ -10,6 +10,8 @@ const musicas = ref([])
 const albuns = ref([])
 const loading = ref(false)
 const queryAtual = ref('')
+const isMinimized = ref(false)
+const isHeaderMinimized = ref(false)
 
 const formatarDuracao = (ms) => {
   const minutos = Math.floor(ms / 60000)
@@ -47,19 +49,27 @@ watch(() => route.query.q, (newQ) => {
 
 <template>
   <div class="busca-page">
-    <HomeHeader />
+    <div v-if="isHeaderMinimized" class="window minimized-bar">
+      <div class="title-bar">
+        <div class="title-bar-text">AlbumDaSemana minimizado</div>
+      </div>
+      <div class="window-body minimized-body">
+        <button type="button" @click="isHeaderMinimized = false">Restaurar</button>
+      </div>
+    </div>
+    <HomeHeader v-else @minimize="isHeaderMinimized = true" />
 
     <div class="window resultados-window">
       <div class="title-bar">
         <div class="title-bar-text">Resultados para "{{ queryAtual }}"</div>
         <div class="title-bar-controls">
-          <button aria-label="Minimize"></button>
+          <button type="button" aria-label="Minimize" @click="isMinimized = !isMinimized"></button>
           <button aria-label="Maximize"></button>
           <button aria-label="Close"></button>
         </div>
       </div>
 
-      <div class="window-body">
+      <div class="window-body" v-show="!isMinimized">
         <div v-if="loading" class="loading">Buscando...</div>
 
         <div v-else>
@@ -112,6 +122,18 @@ watch(() => route.query.q, (newQ) => {
   width: 100%;
   max-width: 900px;
   margin: 10px auto;
+}
+
+.minimized-bar {
+  width: 100%;
+  max-width: 900px;
+  margin: 10px auto;
+}
+
+.minimized-body {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
 }
 
 .secao {

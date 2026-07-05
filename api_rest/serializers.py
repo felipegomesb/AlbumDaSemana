@@ -108,6 +108,7 @@ class AlbumDaSemanaSerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     usuario_username = serializers.SerializerMethodField()
+    usuario_avatar = serializers.SerializerMethodField()
     alvo_tipo = serializers.SerializerMethodField()
     alvo_titulo = serializers.SerializerMethodField()
     alvo_artista = serializers.SerializerMethodField()
@@ -115,10 +116,20 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = [
-            'id', 'usuario', 'usuario_username', 'autor_nome', 'musica', 'album',
+            'id', 'usuario', 'usuario_username', 'usuario_avatar', 'autor_nome', 'musica', 'album',
             'texto', 'likes', 'dislikes', 'criado_em', 'alvo_tipo', 'alvo_titulo', 'alvo_artista'
         ]
         read_only_fields = ['likes', 'dislikes', 'criado_em']
+
+    def get_usuario_username(self, obj):
+        if obj.usuario:
+            return obj.usuario.user_username
+        return obj.autor_nome
+
+    def get_usuario_avatar(self, obj):
+        if obj.usuario and obj.usuario.user_avatar:
+            return obj.usuario.user_avatar.url
+        return None
 
     def get_usuario_username(self, obj):
         if obj.usuario:

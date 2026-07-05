@@ -4,6 +4,8 @@ import { ref, onMounted } from 'vue'
 const apiBase = import.meta.env.VITE_API_BASE_URL
 const musicasAnteriores = ref([])
 const albunsAnteriores = ref([])
+const musicasMinimized = ref(false)
+const albunsMinimized = ref(false)
 
 const formatarData = (dataStr) => {
   const d = new Date(dataStr + 'T00:00:00')
@@ -38,12 +40,12 @@ onMounted(async () => {
       <div class="title-bar">
         <div class="title-bar-text">Músicas Anteriores</div>
         <div class="title-bar-controls">
-          <button aria-label="Minimize"></button>
+          <button type="button" aria-label="Minimize" @click="musicasMinimized = !musicasMinimized"></button>
           <button aria-label="Maximize"></button>
           <button aria-label="Close"></button>
         </div>
       </div>
-      <div class="window-body">
+      <div class="window-body" v-show="!musicasMinimized">
         <table class="historico-table">
           <thead>
             <tr>
@@ -67,12 +69,12 @@ onMounted(async () => {
       <div class="title-bar">
         <div class="title-bar-text">Álbuns Anteriores</div>
         <div class="title-bar-controls">
-          <button aria-label="Minimize"></button>
+          <button type="button" aria-label="Minimize" @click="albunsMinimized = !albunsMinimized"></button>
           <button aria-label="Maximize"></button>
           <button aria-label="Close"></button>
         </div>
       </div>
-      <div class="window-body">
+      <div class="window-body" v-show="!albunsMinimized">
         <div class="albuns-grid">
           <div v-for="entrada in albunsAnteriores" :key="entrada.id" class="album-mini">
             <img

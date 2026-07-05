@@ -17,6 +17,12 @@ const avatarFile = ref(null)
 const avatarPreview = ref('')
 const previewObjectUrl = ref('')
 
+const isHeaderMinimized = ref(false)
+const perfilMinimized = ref(false)
+const editarMinimized = ref(false)
+const resumoMinimized = ref(false)
+const historicoMinimized = ref(false)
+
 const form = ref({
   user_username: '',
   user_bio: '',
@@ -211,19 +217,27 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="perfil-page">
-    <HomeHeader />
+    <div v-if="isHeaderMinimized" class="window minimized-bar">
+      <div class="title-bar">
+        <div class="title-bar-text">AlbumDaSemana minimizado</div>
+      </div>
+      <div class="window-body minimized-body">
+        <button type="button" @click="isHeaderMinimized = false">Restaurar</button>
+      </div>
+    </div>
+    <HomeHeader v-else @minimize="isHeaderMinimized = true" />
 
     <div class="window perfil-window">
       <div class="title-bar">
         <div class="title-bar-text">Perfil</div>
         <div class="title-bar-controls">
-          <button aria-label="Minimize"></button>
+          <button type="button" aria-label="Minimize" @click="perfilMinimized = !perfilMinimized"></button>
           <button aria-label="Maximize"></button>
           <button aria-label="Close"></button>
         </div>
       </div>
 
-      <div class="window-body">
+      <div class="window-body" v-show="!perfilMinimized">
         <div v-if="temUsuario" class="perfil-conteudo">
           <div v-if="loading" class="estado">Carregando perfil...</div>
 
@@ -246,12 +260,12 @@ onBeforeUnmount(() => {
                 <div class="title-bar">
                   <div class="title-bar-text">Editar perfil</div>
                   <div class="title-bar-controls">
-                    <button aria-label="Minimize"></button>
+                    <button type="button" aria-label="Minimize" @click="editarMinimized = !editarMinimized"></button>
                     <button aria-label="Maximize"></button>
                     <button aria-label="Close"></button>
                   </div>
                 </div>
-                <div class="window-body">
+                <div class="window-body" v-show="!editarMinimized">
                   <div class="field-row-stacked">
                     <label>E-mail</label>
                     <input :value="usuario.user_email" readonly />
@@ -290,12 +304,12 @@ onBeforeUnmount(() => {
                 <div class="title-bar">
                   <div class="title-bar-text">Resumo</div>
                   <div class="title-bar-controls">
-                    <button aria-label="Minimize"></button>
+                    <button type="button" aria-label="Minimize" @click="resumoMinimized = !resumoMinimized"></button>
                     <button aria-label="Maximize"></button>
                     <button aria-label="Close"></button>
                   </div>
                 </div>
-                <div class="window-body resumo">
+                <div class="window-body resumo" v-show="!resumoMinimized">
                   <div>
                     <span class="resumo-label">Username</span>
                     <strong>{{ usuario.user_username }}</strong>
@@ -320,12 +334,12 @@ onBeforeUnmount(() => {
               <div class="title-bar">
                 <div class="title-bar-text">Histórico de avaliações</div>
                 <div class="title-bar-controls">
-                  <button aria-label="Minimize"></button>
+                  <button type="button" aria-label="Minimize" @click="historicoMinimized = !historicoMinimized"></button>
                   <button aria-label="Maximize"></button>
                   <button aria-label="Close"></button>
                 </div>
               </div>
-              <div class="window-body">
+              <div class="window-body" v-show="!historicoMinimized">
                 <div v-if="reviews.length" class="reviews-lista">
                   <article v-for="review in reviews" :key="review.id" class="review-card">
                     <div class="review-topo">
@@ -380,6 +394,18 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 980px;
   margin: 10px auto;
+}
+
+.minimized-bar {
+  width: 100%;
+  max-width: 900px;
+  margin: 10px auto;
+}
+
+.minimized-body {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
 }
 
 .perfil-conteudo {

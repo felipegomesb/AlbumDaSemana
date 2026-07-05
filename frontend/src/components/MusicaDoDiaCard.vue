@@ -8,6 +8,7 @@ const userReaction = ref(null)
 const usuario = ref(null)
 const loading = ref(true)
 const erro = ref('')
+const isMinimized = ref(false)
 
 const formatarDuracao = (ms) => {
   const minutos = Math.floor(ms / 60000)
@@ -62,13 +63,13 @@ onMounted(() => {
     <div class="title-bar">
       <div class="title-bar-text">Música do Dia</div>
       <div class="title-bar-controls">
-        <button aria-label="Minimize"></button>
+        <button type="button" aria-label="Minimize" @click="isMinimized = !isMinimized"></button>
         <button aria-label="Maximize"></button>
         <button aria-label="Close"></button>
       </div>
     </div>
 
-    <div class="window-body">
+    <div class="window-body" v-show="!isMinimized">
       <div v-if="loading" class="loading">Carregando...</div>
 
       <div v-else-if="erro" class="erro">{{ erro }}</div>

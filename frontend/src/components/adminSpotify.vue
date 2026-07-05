@@ -12,6 +12,8 @@ const searchType = ref('track')
 const resultados = ref([])
 const loading = ref(false)
 const mensagem = ref('')
+const isMinimized = ref(false)
+const isHeaderMinimized = ref(false)
 
 onMounted(() => {
   const saved = localStorage.getItem('albumDaSemanaUser')
@@ -173,19 +175,27 @@ const definirAlbumDaSemana = async (item) => {
 
 <template>
   <div class="admin-page">
-    <HomeHeader />
+    <div v-if="isHeaderMinimized" class="window minimized-bar">
+      <div class="title-bar">
+        <div class="title-bar-text">AlbumDaSemana minimizado</div>
+      </div>
+      <div class="window-body minimized-body">
+        <button type="button" @click="isHeaderMinimized = false">Restaurar</button>
+      </div>
+    </div>
+    <HomeHeader v-else @minimize="isHeaderMinimized = true" />
 
     <div class="window admin-window">
       <div class="title-bar">
         <div class="title-bar-text">Admin - Buscar no Spotify</div>
         <div class="title-bar-controls">
-          <button aria-label="Minimize"></button>
+          <button type="button" aria-label="Minimize" @click="isMinimized = !isMinimized"></button>
           <button aria-label="Maximize"></button>
           <button aria-label="Close"></button>
         </div>
       </div>
 
-      <div class="window-body">
+      <div class="window-body" v-show="!isMinimized">
         <form @submit.prevent="buscarSpotify" class="busca-form">
           <div class="field-row">
             <input
@@ -252,6 +262,18 @@ const definirAlbumDaSemana = async (item) => {
   width: 100%;
   max-width: 900px;
   margin: 10px auto;
+}
+
+.minimized-bar {
+  width: 100%;
+  max-width: 900px;
+  margin: 10px auto;
+}
+
+.minimized-body {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
 }
 
 .busca-form {
