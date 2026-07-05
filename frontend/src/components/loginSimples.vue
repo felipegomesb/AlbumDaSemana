@@ -9,6 +9,7 @@ const apiBase = import.meta.env.VITE_API_BASE_URL
 const users = ref([])
 const loading = ref(false)
 const success = ref(false)
+const isMinimized = ref(false)
 const router = useRouter()
 
 // Dados do formulário
@@ -81,13 +82,13 @@ const Login = async () => {
     <div class="title-bar">
       <div class="title-bar-text">Login</div>
       <div class="title-bar-controls">
-        <button aria-label="Minimize"></button>
+        <button type="button" aria-label="Minimize" @click="isMinimized = !isMinimized"></button>
         <button aria-label="Maximize"></button>
         <button aria-label="Close"></button>
       </div>
     </div>
 
-    <div class="window-body">
+    <div class="window-body" v-show="!isMinimized">
       <form @submit.prevent="Login">
         
         <div class="field-row-stacked">

@@ -19,16 +19,25 @@ const props = defineProps({
 const emit = defineEmits(['changed'])
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
+const baseUrl = computed(() => (apiBase || '').replace(/\/api\/?$/, ''))
 const usuario = ref(null)
 const reviews = ref([])
 const loading = ref(false)
 const enviando = ref(false)
 const mensagem = ref('')
 const novoTexto = ref('')
+const notaSelecionada = ref(0)
+const notaHover = ref(0)
+const isMinimized = ref(false)
 
 const endpoint = computed(() => {
   const tipo = props.targetType === 'album' ? 'albuns' : 'musicas'
   return `${apiBase}/reviews/${tipo}/${props.targetId}/`
+})
+
+const reviewDoUsuario = computed(() => {
+  if (!usuario.value) return null
+  return reviews.value.find((r) => r.usuario === usuario.value.id) || null
 })
 
 const carregarUsuario = () => {
@@ -36,7 +45,18 @@ const carregarUsuario = () => {
   usuario.value = savedUser ? JSON.parse(savedUser) : null
 }
 
-const carregarReviews = async () => {
+const normalizarAvatar = (valor) => {
+  if (!valor) return ''
+  if (valor.startsWith('http://') || valor.startsWith('https://') || valor.startsWith('blob:')) {
+    return valor
+  }
+  if (valor.startsWith('/')) {
+    return `${baseUrl.value}${valor}`
+  }
+  return `${baseUrl.value}/${valor}`
+}
+
+const carregarReviews = async (preencherForm = false) => {
   loading.value = true
   mensagem.value = ''
 
@@ -48,6 +68,11 @@ const carregarReviews = async () => {
     }
 
     reviews.value = await response.json()
+
+    if (preencherForm && reviewDoUsuario.value) {
+      novoTexto.value = reviewDoUsuario.value.texto
+      notaSelecionada.value = reviewDoUsuario.value.nota || 0
+    }
   } catch (error) {
     mensagem.value = 'Não foi possível carregar as reviews.'
   } finally {
@@ -64,6 +89,11 @@ const publicarReview = async () => {
   const texto = novoTexto.value.trim()
   if (!texto) return
 
+  if (!notaSelecionada.value) {
+    mensagem.value = 'Selecione uma nota de 1 a 5 estrelas.'
+    return
+  }
+
   enviando.value = true
   mensagem.value = ''
 
@@ -73,6 +103,7 @@ const publicarReview = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         texto,
+        nota: notaSelecionada.value,
         autor_nome: usuario.value.user_username,
         usuario_id: usuario.value.id,
       }),
@@ -82,8 +113,7 @@ const publicarReview = async () => {
       throw new Error('Falha ao publicar review')
     }
 
-    novoTexto.value = ''
-    await carregarReviews()
+    await carregarReviews(true)
     emit('changed')
   } catch (error) {
     mensagem.value = 'Não foi possível publicar sua review.'
@@ -123,11 +153,11 @@ const formatarData = (dataStr) => {
 
 onMounted(() => {
   carregarUsuario()
-  carregarReviews()
+  carregarReviews(true)
 })
 
 watch(() => props.targetId, () => {
-  carregarReviews()
+  carregarReviews(true)
 })
 </script>
 
@@ -136,14 +166,28 @@ watch(() => props.targetId, () => {
     <div class="title-bar">
       <div class="title-bar-text">Reviews de {{ titulo }}</div>
       <div class="title-bar-controls">
-        <button aria-label="Minimize"></button>
+        <button type="button" aria-label="Minimize" @click="isMinimized = !isMinimized"></button>
         <button aria-label="Maximize"></button>
         <button aria-label="Close"></button>
       </div>
     </div>
 
-    <div class="window-body">
+    <div class="window-body" v-show="!isMinimized">
       <form class="review-form" @submit.prevent="publicarReview">
+        <div class="estrelas-input">
+          <span class="estrelas-label">Sua nota:</span>
+          <button
+            v-for="n in 5"
+            :key="n"
+            type="button"
+            class="estrela-btn"
+            :class="{ preenchida: n <= (notaHover || notaSelecionada) }"
+            @click="notaSelecionada = n"
+            @mouseenter="notaHover = n"
+            @mouseleave="notaHover = 0"
+          >★</button>
+          <span v-if="notaSelecionada" class="estrelas-valor">{{ notaSelecionada }}/5</span>
+        </div>
         <textarea
           v-model="novoTexto"
           class="review-textarea"
@@ -151,10 +195,11 @@ watch(() => props.targetId, () => {
           placeholder="Escreva sua review..."
         />
         <div class="review-actions">
-          <span v-if="usuario" class="autor">Publicando como {{ usuario.user_username }}</span>
+          <span v-if="usuario && reviewDoUsuario" class="autor">Editando sua review de {{ usuario.user_username }}</span>
+          <span v-else-if="usuario" class="autor">Publicando como {{ usuario.user_username }}</span>
           <span v-else class="autor alerta">Faça login para publicar</span>
           <button type="submit" :disabled="enviando || !usuario">
-            {{ enviando ? 'Publicando...' : 'Publicar review' }}
+            {{ enviando ? 'Salvando...' : (reviewDoUsuario ? 'Atualizar review' : 'Publicar review') }}
           </button>
         </div>
       </form>
@@ -165,7 +210,21 @@ watch(() => props.targetId, () => {
       <div v-else-if="reviews.length" class="reviews-lista">
         <article v-for="review in reviews" :key="review.id" class="review-item">
           <div class="review-topo">
-            <strong>{{ review.usuario_username }}</strong>
+            <div class="review-autor">
+              <img
+                v-if="review.usuario_avatar"
+                :src="normalizarAvatar(review.usuario_avatar)"
+                :alt="review.usuario_username"
+                class="avatar-quadrado"
+              />
+              <div v-else class="avatar-quadrado placeholder">
+                {{ review.usuario_username?.charAt(0)?.toUpperCase() }}
+              </div>
+              <strong>{{ review.usuario_username }}</strong>
+              <span v-if="review.nota" class="estrelas-exibicao">
+                <span v-for="n in 5" :key="n" :class="{ preenchida: n <= review.nota }">★</span>
+              </span>
+            </div>
             <span>{{ formatarData(review.criado_em) }}</span>
           </div>
           <p class="review-texto">{{ review.texto }}</p>
@@ -191,6 +250,47 @@ watch(() => props.targetId, () => {
   flex-direction: column;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.estrelas-input {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.estrelas-label {
+  font-size: 12px;
+  margin-right: 6px;
+}
+
+.estrela-btn {
+  border: 0;
+  background: transparent;
+  padding: 0 1px;
+  font-size: 20px;
+  line-height: 1;
+  color: #bbb;
+  cursor: pointer;
+}
+
+.estrela-btn.preenchida {
+  color: #d4a017;
+}
+
+.estrelas-valor {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #666;
+}
+
+.estrelas-exibicao {
+  font-size: 13px;
+  color: #bbb;
+  letter-spacing: 1px;
+}
+
+.estrelas-exibicao span.preenchida {
+  color: #d4a017;
 }
 
 .review-textarea {
@@ -235,9 +335,34 @@ watch(() => props.targetId, () => {
 .review-topo {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
   font-size: 12px;
   color: #666;
+}
+
+.review-autor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-quadrado {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border: 1px solid #000;
+  flex-shrink: 0;
+}
+
+.avatar-quadrado.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d6d6d6;
+  color: #000;
+  font-size: 13px;
+  font-weight: bold;
 }
 
 .review-texto {

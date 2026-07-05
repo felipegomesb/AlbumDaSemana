@@ -15,8 +15,11 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    volumes:
+      - media_data:/app/media
     env_file:
       - .env.local
 
 volumes:
   postgres_data:
+  media_data:

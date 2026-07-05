@@ -19,6 +19,8 @@ const generoFiltro = ref('')
 const ordenar = ref('recente')
 const fonte = ref('posts')
 const salvando = ref({})
+const isMinimized = ref(false)
+const isHeaderMinimized = ref(false)
 
 const formatarDuracao = (ms) => {
   const minutos = Math.floor(ms / 60000)
@@ -143,7 +145,7 @@ const abrirTrack = async (track) => {
       router.push(`/musica/${musica.id}`)
     }
   } catch (e) {
-    console.error('Erro ao salvar música:', e)
+    console.error('Erro ao salvar musica:', e)
   } finally {
     salvando.value[key] = false
   }
@@ -163,7 +165,7 @@ const abrirAlbum = async (album) => {
       router.push(`/album/${albumLocal.id}`)
     }
   } catch (e) {
-    console.error('Erro ao salvar álbum:', e)
+    console.error('Erro ao salvar album:', e)
   } finally {
     salvando.value[key] = false
   }
@@ -187,7 +189,15 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
 
 <template>
   <div class="busca-page">
-    <HomeHeader />
+    <div v-if="isHeaderMinimized" class="window minimized-bar">
+      <div class="title-bar">
+        <div class="title-bar-text">AlbumDaSemana minimizado</div>
+      </div>
+      <div class="window-body minimized-body">
+        <button type="button" @click="isHeaderMinimized = false">Restaurar</button>
+      </div>
+    </div>
+    <HomeHeader v-else @minimize="isHeaderMinimized = true" />
 
     <div class="window resultados-window">
       <div class="title-bar">
@@ -196,13 +206,13 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
           <span v-if="!loading"> ({{ totalResultados() }})</span>
         </div>
         <div class="title-bar-controls">
-          <button aria-label="Minimize"></button>
+          <button type="button" aria-label="Minimize" @click="isMinimized = !isMinimized"></button>
           <button aria-label="Maximize"></button>
           <button aria-label="Close" @click="router.push('/')"></button>
         </div>
       </div>
 
-      <div class="window-body">
+      <div class="window-body" v-show="!isMinimized">
         <div class="fonte-botoes">
           <button :class="{ ativo: fonte === 'posts' }" @click="fonte = 'posts'">Buscar Posts</button>
           <button :class="{ ativo: fonte === 'criar' }" @click="fonte = 'criar'">Criar Novo</button>
@@ -423,6 +433,18 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
   width: 100%;
   max-width: 900px;
   margin: 10px auto;
+}
+
+.minimized-bar {
+  width: 100%;
+  max-width: 900px;
+  margin: 10px auto;
+}
+
+.minimized-body {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
 }
 
 .fonte-botoes {

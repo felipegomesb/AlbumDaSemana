@@ -1,26 +1,54 @@
 from rest_framework import serializers
-from django.db.models import Sum
+from django.db.models import Sum, Avg
+from django.contrib.auth.hashers import make_password
 from .models import Usuario, Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana, Review
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ['id', 'user_username', 'user_email', 'user_password', 'is_admin']
+        fields = [
+            'id', 'user_username', 'user_email', 'user_password',
+            'user_bio', 'user_avatar', 'is_admin'
+        ]
         read_only_fields = ['is_admin']
+        extra_kwargs = {
+            'user_password': {'write_only': True},
+        }
+
+    def create(self, validated_data):
+        password = validated_data.pop('user_password', '')
+        usuario = Usuario(**validated_data)
+        if password:
+            usuario.user_password = make_password(password)
+        usuario.save()
+        return usuario
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('user_password', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if password:
+            instance.user_password = make_password(password)
+
+        instance.save()
+        return instance
 
 
 class MusicaSerializer(serializers.ModelSerializer):
     review_count = serializers.SerializerMethodField()
     review_likes = serializers.SerializerMethodField()
     review_dislikes = serializers.SerializerMethodField()
+    nota_media = serializers.SerializerMethodField()
 
     class Meta:
         model = Musica
         fields = [
             'id', 'titulo', 'artista', 'album_nome', 'genero', 'duracao_ms',
             'capa_url', 'spotify_id', 'likes', 'dislikes', 'criado_em',
-            'review_count', 'review_likes', 'review_dislikes'
+            'review_count', 'review_likes', 'review_dislikes', 'nota_media'
         ]
 
     def get_review_count(self, obj):
@@ -31,6 +59,10 @@ class MusicaSerializer(serializers.ModelSerializer):
 
     def get_review_dislikes(self, obj):
         return obj.reviews_musicas.aggregate(total=Sum('dislikes'))['total'] or 0
+
+    def get_nota_media(self, obj):
+        media = obj.reviews_musicas.filter(nota__isnull=False).aggregate(media=Avg('nota'))['media']
+        return round(media, 1) if media is not None else None
 
 
 class FaixaSerializer(serializers.ModelSerializer):
@@ -44,13 +76,14 @@ class AlbumSerializer(serializers.ModelSerializer):
     review_count = serializers.SerializerMethodField()
     review_likes = serializers.SerializerMethodField()
     review_dislikes = serializers.SerializerMethodField()
+    nota_media = serializers.SerializerMethodField()
 
     class Meta:
         model = Album
         fields = [
             'id', 'titulo', 'artista', 'ano', 'genero', 'capa_url',
             'spotify_id', 'likes', 'dislikes', 'criado_em', 'faixas',
-            'review_count', 'review_likes', 'review_dislikes'
+            'review_count', 'review_likes', 'review_dislikes', 'nota_media'
         ]
 
     def get_review_count(self, obj):
@@ -61,6 +94,10 @@ class AlbumSerializer(serializers.ModelSerializer):
 
     def get_review_dislikes(self, obj):
         return obj.reviews_albuns.aggregate(total=Sum('dislikes'))['total'] or 0
+
+    def get_nota_media(self, obj):
+        media = obj.reviews_albuns.filter(nota__isnull=False).aggregate(media=Avg('nota'))['media']
+        return round(media, 1) if media is not None else None
 
 
 class MusicaDoDiaSerializer(serializers.ModelSerializer):
@@ -81,12 +118,16 @@ class AlbumDaSemanaSerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     usuario_username = serializers.SerializerMethodField()
+    usuario_avatar = serializers.SerializerMethodField()
+    alvo_tipo = serializers.SerializerMethodField()
+    alvo_titulo = serializers.SerializerMethodField()
+    alvo_artista = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
         fields = [
-            'id', 'usuario', 'usuario_username', 'autor_nome', 'musica', 'album',
-            'texto', 'likes', 'dislikes', 'criado_em'
+            'id', 'usuario', 'usuario_username', 'usuario_avatar', 'autor_nome', 'musica', 'album',
+            'texto', 'nota', 'likes', 'dislikes', 'criado_em', 'alvo_tipo', 'alvo_titulo', 'alvo_artista'
         ]
         read_only_fields = ['likes', 'dislikes', 'criado_em']
 
@@ -95,3 +136,28 @@ class ReviewSerializer(serializers.ModelSerializer):
             return obj.usuario.user_username
         return obj.autor_nome
 
+    def get_usuario_avatar(self, obj):
+        if obj.usuario and obj.usuario.user_avatar:
+            return obj.usuario.user_avatar.url
+        return None
+
+    def get_alvo_tipo(self, obj):
+        if obj.musica:
+            return 'musica'
+        if obj.album:
+            return 'album'
+        return None
+
+    def get_alvo_titulo(self, obj):
+        if obj.musica:
+            return obj.musica.titulo
+        if obj.album:
+            return obj.album.titulo
+        return None
+
+    def get_alvo_artista(self, obj):
+        if obj.musica:
+            return obj.musica.artista
+        if obj.album:
+            return obj.album.artista
+        return None
