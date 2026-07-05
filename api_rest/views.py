@@ -608,16 +608,32 @@ def reviews_musica(request, musica_id):
     texto = request.data.get('texto', '').strip()
     autor_nome = request.data.get('autor_nome', '').strip()
     usuario_id = request.data.get('usuario_id')
+    nota = request.data.get('nota')
 
     if not texto or not autor_nome:
         return Response({'error': 'texto e autor_nome são obrigatórios'}, status=status.HTTP_400_BAD_REQUEST)
 
-    review = Review.objects.create(
-        musica=musica,
-        texto=texto,
-        autor_nome=autor_nome,
-        usuario_id=usuario_id or None,
-    )
+    if nota is not None:
+        try:
+            nota = int(nota)
+        except (TypeError, ValueError):
+            return Response({'error': 'nota deve ser um número entre 1 e 5'}, status=status.HTTP_400_BAD_REQUEST)
+        if nota < 1 or nota > 5:
+            return Response({'error': 'nota deve estar entre 1 e 5'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if usuario_id:
+        review, _ = Review.objects.update_or_create(
+            musica=musica,
+            usuario_id=usuario_id,
+            defaults={'texto': texto, 'autor_nome': autor_nome, 'nota': nota},
+        )
+    else:
+        review = Review.objects.create(
+            musica=musica,
+            texto=texto,
+            autor_nome=autor_nome,
+            nota=nota,
+        )
     return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
 
 
@@ -634,16 +650,32 @@ def reviews_album(request, album_id):
     texto = request.data.get('texto', '').strip()
     autor_nome = request.data.get('autor_nome', '').strip()
     usuario_id = request.data.get('usuario_id')
+    nota = request.data.get('nota')
 
     if not texto or not autor_nome:
         return Response({'error': 'texto e autor_nome são obrigatórios'}, status=status.HTTP_400_BAD_REQUEST)
 
-    review = Review.objects.create(
-        album=album,
-        texto=texto,
-        autor_nome=autor_nome,
-        usuario_id=usuario_id or None,
-    )
+    if nota is not None:
+        try:
+            nota = int(nota)
+        except (TypeError, ValueError):
+            return Response({'error': 'nota deve ser um número entre 1 e 5'}, status=status.HTTP_400_BAD_REQUEST)
+        if nota < 1 or nota > 5:
+            return Response({'error': 'nota deve estar entre 1 e 5'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if usuario_id:
+        review, _ = Review.objects.update_or_create(
+            album=album,
+            usuario_id=usuario_id,
+            defaults={'texto': texto, 'autor_nome': autor_nome, 'nota': nota},
+        )
+    else:
+        review = Review.objects.create(
+            album=album,
+            texto=texto,
+            autor_nome=autor_nome,
+            nota=nota,
+        )
     return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
 
 

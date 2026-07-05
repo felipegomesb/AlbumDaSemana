@@ -83,6 +83,12 @@ onMounted(() => {
         />
         <div class="info">
           <p class="titulo"><strong>{{ musica.titulo }}</strong></p>
+          <p v-if="musica.nota_media" class="nota-media">
+            <span class="estrelas-exibicao">
+              <span v-for="n in 5" :key="n" :class="{ preenchida: n <= Math.round(musica.nota_media) }">★</span>
+            </span>
+            <span class="nota-valor">{{ musica.nota_media }}/5</span>
+          </p>
           <p>Artista: {{ musica.artista }}</p>
           <p v-if="musica.album_nome">Álbum: {{ musica.album_nome }}</p>
           <p v-if="musica.genero">Gênero: {{ musica.genero }}</p>
@@ -134,6 +140,28 @@ onMounted(() => {
 
 .titulo {
   font-size: 18px;
+}
+
+.nota-media {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.estrelas-exibicao {
+  font-size: 15px;
+  color: #bbb;
+  letter-spacing: 1px;
+}
+
+.estrelas-exibicao span.preenchida {
+  color: #d4a017;
+}
+
+.nota-valor {
+  font-size: 12px;
+  color: #666;
 }
 
 .contadores {
