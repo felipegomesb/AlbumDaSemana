@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class Usuario(models.Model):
@@ -111,6 +112,11 @@ class Review(models.Model):
         related_name='reviews_albuns',
     )
     texto = models.TextField()
+    nota = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
     likes = models.IntegerField(default=0)
     dislikes = models.IntegerField(default=0)
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -121,6 +127,18 @@ class Review(models.Model):
 
     class Meta:
         ordering = ['-criado_em']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario', 'musica'],
+                name='unique_review_usuario_musica',
+                condition=models.Q(usuario__isnull=False, musica__isnull=False),
+            ),
+            models.UniqueConstraint(
+                fields=['usuario', 'album'],
+                name='unique_review_usuario_album',
+                condition=models.Q(usuario__isnull=False, album__isnull=False),
+            ),
+        ]
 
 
 class Reacao(models.Model):
