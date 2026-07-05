@@ -17,7 +17,7 @@ const queryAtual = ref('')
 const tipoFiltro = ref('todos')
 const generoFiltro = ref('')
 const ordenar = ref('recente')
-const fonte = ref('spotify')
+const fonte = ref('posts')
 const salvando = ref({})
 
 const formatarDuracao = (ms) => {
@@ -113,14 +113,14 @@ const buscar = async () => {
   loading.value = true
 
   try {
-    if (fonte.value === 'local') {
-      spotifyTracks.value = []
-      spotifyAlbums.value = []
-      await buscarLocal(q)
-    } else {
+    if (fonte.value === 'criar') {
       musicas.value = []
       albuns.value = []
       await buscarSpotify(q)
+    } else {
+      spotifyTracks.value = []
+      spotifyAlbums.value = []
+      await buscarLocal(q)
     }
   } catch (e) {
     console.error('Erro na busca:', e)
@@ -170,8 +170,8 @@ const abrirAlbum = async (album) => {
 }
 
 const totalResultados = () => {
-  if (fonte.value === 'local') return musicas.value.length + albuns.value.length
-  return spotifyTracks.value.length + spotifyAlbums.value.length
+  if (fonte.value === 'criar') return spotifyTracks.value.length + spotifyAlbums.value.length
+  return musicas.value.length + albuns.value.length
 }
 
 onMounted(() => buscar())
@@ -203,17 +203,14 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
       </div>
 
       <div class="window-body">
+        <div class="fonte-botoes">
+          <button :class="{ ativo: fonte === 'posts' }" @click="fonte = 'posts'">Buscar Posts</button>
+          <button :class="{ ativo: fonte === 'criar' }" @click="fonte = 'criar'">Criar Novo</button>
+        </div>
+
         <fieldset class="filtros">
           <legend>Filtros</legend>
           <div class="filtros-row">
-            <div class="filtro-grupo">
-              <label>Fonte:</label>
-              <select v-model="fonte">
-                <option value="spotify">Spotify</option>
-                <option value="local">Catálogo local</option>
-              </select>
-            </div>
-
             <div class="filtro-grupo">
               <label>Tipo:</label>
               <select v-model="tipoFiltro">
@@ -223,7 +220,7 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
               </select>
             </div>
 
-            <div v-if="fonte === 'local'" class="filtro-grupo">
+            <div v-if="fonte === 'posts'" class="filtro-grupo">
               <label>Genero:</label>
               <select v-model="generoFiltro">
                 <option value="">Todos</option>
@@ -231,7 +228,7 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
               </select>
             </div>
 
-            <div v-if="fonte === 'local'" class="filtro-grupo">
+            <div v-if="fonte === 'posts'" class="filtro-grupo">
               <label>Ordenar:</label>
               <select v-model="ordenar">
                 <option value="recente">Mais recentes</option>
@@ -245,10 +242,10 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
         <div v-if="loading" class="loading">Buscando...</div>
 
         <div v-else>
-          <!-- RESULTADOS SPOTIFY -->
-          <template v-if="fonte === 'spotify'">
+          <!-- CRIAR NOVO (Spotify) -->
+          <template v-if="fonte === 'criar'">
             <div v-if="!spotifyTracks.length && !spotifyAlbums.length && queryAtual" class="vazio">
-              Nenhum resultado encontrado no Spotify.
+              Nenhum resultado encontrado.
             </div>
 
             <div v-if="spotifyTracks.length" class="secao">
@@ -326,10 +323,10 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
             </div>
           </template>
 
-          <!-- RESULTADOS LOCAIS -->
+          <!-- BUSCAR POSTS (local) -->
           <template v-else>
             <div v-if="!musicas.length && !albuns.length" class="vazio">
-              Nenhum resultado encontrado no catálogo local.
+              Nenhum resultado encontrado.
             </div>
 
             <div v-if="musicas.length" class="secao">
@@ -426,6 +423,24 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
   width: 100%;
   max-width: 900px;
   margin: 10px auto;
+}
+
+.fonte-botoes {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.fonte-botoes button {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.fonte-botoes button.ativo {
+  font-weight: bold;
+  box-shadow: inset 1px 1px 2px #000;
 }
 
 .filtros {
