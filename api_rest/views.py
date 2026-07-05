@@ -317,10 +317,42 @@ def listar_musicas(request):
 
 
 @api_view(['GET'])
+def detalhe_musica(request, musica_id):
+    musica = get_object_or_404(Musica, pk=musica_id)
+    data = MusicaSerializer(musica).data
+
+    usuario_id = request.query_params.get('usuario_id')
+    if usuario_id:
+        try:
+            reacao = Reacao.objects.get(usuario_id=usuario_id, musica=musica)
+            data['user_reaction'] = reacao.tipo
+        except (Reacao.DoesNotExist, ValueError):
+            data['user_reaction'] = None
+
+    return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
 def listar_albuns(request):
     albuns = Album.objects.all().order_by('-criado_em')
     serializer = AlbumSerializer(albuns, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def detalhe_album(request, album_id):
+    album = get_object_or_404(Album, pk=album_id)
+    data = AlbumSerializer(album).data
+
+    usuario_id = request.query_params.get('usuario_id')
+    if usuario_id:
+        try:
+            reacao = Reacao.objects.get(usuario_id=usuario_id, album=album)
+            data['user_reaction'] = reacao.tipo
+        except (Reacao.DoesNotExist, ValueError):
+            data['user_reaction'] = None
+
+    return Response(data, status=status.HTTP_200_OK)
 
 
 # --- Rotação automática (Lazy) ---
@@ -462,20 +494,121 @@ def historico_albuns(request):
 @api_view(['GET'])
 def busca(request):
     query = request.query_params.get('q', '')
-    if not query:
-        return Response({"musicas": [], "albuns": []}, status=status.HTTP_200_OK)
+    tipo = request.query_params.get('tipo', 'todos')
+    genero = request.query_params.get('genero', '')
+    ordenar = request.query_params.get('ordenar', 'recente')
 
-    musicas = Musica.objects.filter(
-        Q(titulo__icontains=query) | Q(artista__icontains=query) | Q(genero__icontains=query)
-    )
-    albuns = Album.objects.filter(
-        Q(titulo__icontains=query) | Q(artista__icontains=query) | Q(genero__icontains=query)
-    )
+    ordem_map = {
+        'recente': '-criado_em',
+        'likes': '-likes',
+        'titulo': 'titulo',
+    }
+    ordem = ordem_map.get(ordenar, '-criado_em')
+
+    musicas_data = []
+    albuns_data = []
+
+    if tipo in ('todos', 'musica'):
+        qs = Musica.objects.all()
+        if query:
+            qs = qs.filter(
+                Q(titulo__icontains=query) | Q(artista__icontains=query) | Q(genero__icontains=query)
+            )
+        if genero:
+            qs = qs.filter(genero__iexact=genero)
+        musicas_data = MusicaSerializer(qs.order_by(ordem), many=True).data
+
+    if tipo in ('todos', 'album'):
+        qs = Album.objects.all()
+        if query:
+            qs = qs.filter(
+                Q(titulo__icontains=query) | Q(artista__icontains=query) | Q(genero__icontains=query)
+            )
+        if genero:
+            qs = qs.filter(genero__iexact=genero)
+        albuns_data = AlbumSerializer(qs.order_by(ordem), many=True).data
+
+    generos_musica = list(Musica.objects.exclude(genero='').values_list('genero', flat=True).distinct())
+    generos_album = list(Album.objects.exclude(genero='').values_list('genero', flat=True).distinct())
+    generos = sorted(set(generos_musica + generos_album))
 
     return Response({
-        "musicas": MusicaSerializer(musicas, many=True).data,
-        "albuns": AlbumSerializer(albuns, many=True).data,
+        "musicas": musicas_data,
+        "albuns": albuns_data,
+        "generos": generos,
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def busca_spotify(request):
+    query = request.query_params.get('q', '')
+    search_type = request.query_params.get('type', 'track')
+
+    if not query:
+        return Response({"error": "Parâmetro 'q' é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+
+    results = spotify.search_spotify(query, search_type)
+    if results is None:
+        return Response({"error": "Falha ao conectar com Spotify"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    return Response(results, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def garantir_musica(request):
+    spotify_id = request.data.get('spotify_id')
+    titulo = request.data.get('titulo', '')
+    artista = request.data.get('artista', '')
+    album_nome = request.data.get('album_nome', '')
+    genero = request.data.get('genero', '')
+    duracao_ms = request.data.get('duracao_ms', 0)
+    capa_url = request.data.get('capa_url', '')
+
+    if not spotify_id or not titulo:
+        return Response({"error": "spotify_id e titulo são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
+
+    musica, _ = Musica.objects.get_or_create(
+        spotify_id=spotify_id,
+        defaults={
+            'titulo': titulo, 'artista': artista, 'album_nome': album_nome,
+            'genero': genero, 'duracao_ms': duracao_ms, 'capa_url': capa_url,
+        }
+    )
+    return Response(MusicaSerializer(musica).data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def garantir_album(request):
+    spotify_id = request.data.get('spotify_id')
+    titulo = request.data.get('titulo', '')
+    artista = request.data.get('artista', '')
+    ano = request.data.get('ano')
+    genero = request.data.get('genero', '')
+    capa_url = request.data.get('capa_url', '')
+
+    if not spotify_id or not titulo:
+        return Response({"error": "spotify_id e titulo são obrigatórios"}, status=status.HTTP_400_BAD_REQUEST)
+
+    album, created = Album.objects.get_or_create(
+        spotify_id=spotify_id,
+        defaults={
+            'titulo': titulo, 'artista': artista, 'ano': ano,
+            'genero': genero, 'capa_url': capa_url,
+        }
+    )
+
+    if created:
+        tracks_response = spotify.get_album_tracks(spotify_id)
+        if tracks_response and 'items' in tracks_response:
+            for i, t in enumerate(tracks_response['items']):
+                Faixa.objects.create(
+                    album=album,
+                    titulo=t.get('name', ''),
+                    duracao_ms=t.get('duration_ms', 0),
+                    numero=t.get('track_number', i + 1),
+                )
+
+    return Response(AlbumSerializer(album).data, status=status.HTTP_200_OK)
 
 
 def _toggle_reaction(usuario_id, target_field, target_obj, action):
