@@ -6,6 +6,8 @@ import HomePage from './components/HomePage.vue'
 import BuscaResultados from './components/BuscaResultados.vue'
 import AdminSpotify from './components/adminSpotify.vue'
 import Perfil from './components/Perfil.vue'
+import DetalheMusica from './components/DetalheMusica.vue'
+import DetalheAlbum from './components/DetalheAlbum.vue'
 
 const routes = [
   {
@@ -27,6 +29,16 @@ const routes = [
     path: '/busca',
     name: 'Busca',
     component: BuscaResultados
+  },
+  {
+    path: '/musica/:id',
+    name: 'DetalheMusica',
+    component: DetalheMusica
+  },
+  {
+    path: '/album/:id',
+    name: 'DetalheAlbum',
+    component: DetalheAlbum
   },
   {
     path: '/admin-spotify',

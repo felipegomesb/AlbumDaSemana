@@ -20,7 +20,9 @@ urlpatterns = [
 
     # Catálogo local
     path('musicas/', views.listar_musicas, name='listar_musicas'),
+    path('musicas/<int:musica_id>/', views.detalhe_musica, name='detalhe_musica'),
     path('albuns/', views.listar_albuns, name='listar_albuns'),
+    path('albuns/<int:album_id>/', views.detalhe_album, name='detalhe_album'),
     path('musicas/<int:musica_id>/react/', views.react_musica, name='react_musica'),
     path('albuns/<int:album_id>/react/', views.react_album, name='react_album'),
 
@@ -36,6 +38,11 @@ urlpatterns = [
 
     # Busca
     path('busca/', views.busca, name='busca'),
+    path('busca/spotify/', views.busca_spotify, name='busca_spotify'),
+
+    # Garantir (auto-save do Spotify para o banco local)
+    path('musicas/garantir/', views.garantir_musica, name='garantir_musica'),
+    path('albuns/garantir/', views.garantir_album, name='garantir_album'),
 
     # Reviews
     path('reviews/musicas/<int:musica_id>/', views.reviews_musica, name='reviews_musica'),
