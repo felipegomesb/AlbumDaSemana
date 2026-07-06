@@ -20,6 +20,16 @@ services:
     env_file:
       - .env.local
 
+  cron-rotacao:
+    build: .
+    container_name: album-da-semana-cron
+    depends_on:
+      - db
+      - django-web
+    env_file:
+      - .env.local
+    command: ["sh", "/app/cron_rotacao.sh"]
+
 volumes:
   postgres_data:
   media_data:
