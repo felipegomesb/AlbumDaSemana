@@ -47,6 +47,7 @@ urlpatterns = [
     # Reviews
     path('reviews/musicas/<int:musica_id>/', views.reviews_musica, name='reviews_musica'),
     path('reviews/albuns/<int:album_id>/', views.reviews_album, name='reviews_album'),
+    path('reviews/<int:review_id>/', views.review_detail, name='review_detail'),
     path('reviews/<int:review_id>/reaction/', views.review_reaction, name='review_reaction'),
 
     # Rankings

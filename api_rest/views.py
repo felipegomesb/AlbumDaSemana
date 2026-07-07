@@ -850,6 +850,38 @@ def reviews_album(request, album_id):
     return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
 
 
+@api_view(['PUT', 'DELETE'])
+def review_detail(request, review_id):
+    review = get_object_or_404(Review, pk=review_id)
+    usuario_id = request.data.get('usuario_id')
+
+    if not usuario_id or review.usuario_id != int(usuario_id):
+        return Response({'error': 'Voce so pode alterar suas proprias reviews'}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == 'DELETE':
+        review.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    texto = request.data.get('texto', '').strip()
+    nota = request.data.get('nota')
+
+    if not texto:
+        return Response({'error': 'texto e obrigatorio'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if nota is not None:
+        try:
+            nota = int(nota)
+        except (TypeError, ValueError):
+            return Response({'error': 'nota deve ser um numero entre 1 e 5'}, status=status.HTTP_400_BAD_REQUEST)
+        if nota < 1 or nota > 5:
+            return Response({'error': 'nota deve estar entre 1 e 5'}, status=status.HTTP_400_BAD_REQUEST)
+
+    review.texto = texto
+    review.nota = nota
+    review.save(update_fields=['texto', 'nota'])
+    return Response(ReviewSerializer(review).data, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
 def review_reaction(request, review_id):
     review = get_object_or_404(Review, pk=review_id)
