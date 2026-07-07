@@ -49,6 +49,9 @@ urlpatterns = [
     path('reviews/albuns/<int:album_id>/', views.reviews_album, name='reviews_album'),
     path('reviews/<int:review_id>/reaction/', views.review_reaction, name='review_reaction'),
 
+    # Rankings
+    path('rankings/', views.rankings, name='rankings'),
+
     # Ping
     path('ping/', views.ping, name='ping'),
 

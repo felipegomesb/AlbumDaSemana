@@ -226,8 +226,9 @@ def ping(request):
 # SPOTIFY, MUSICAS, ALBUNS, ROTAÇÃO, BUSCA
 # =============================================
 
+from collections import defaultdict
 from datetime import date, timedelta
-from django.db.models import Q
+from django.db.models import Q, F, Avg, Count
 from .models import Musica, Album, Faixa, MusicaDoDia, AlbumDaSemana, Reacao
 from .serializers import (
     MusicaSerializer, AlbumSerializer,
@@ -827,3 +828,41 @@ def review_reaction(request, review_id):
     data = ReviewSerializer(review).data
     data['user_reaction'] = user_reaction
     return Response(data, status=status.HTTP_200_OK)
+
+
+# --- Rankings ---
+
+@api_view(['GET'])
+def rankings(request):
+    top_albuns = Album.objects.annotate(
+        media=Avg('reviews_albuns__nota'),
+        num_reviews=Count('reviews_albuns'),
+    ).filter(media__isnull=False).order_by('-media', '-num_reviews')[:10]
+
+    top_musicas = Musica.objects.annotate(
+        media=Avg('reviews_musicas__nota'),
+        num_reviews=Count('reviews_musicas'),
+    ).filter(media__isnull=False).order_by('-media', '-num_reviews')[:10]
+
+    artista_counts = defaultdict(int)
+    for entry in (
+        Review.objects.filter(musica__isnull=False)
+        .values(artista=F('musica__artista'))
+        .annotate(total=Count('id'))
+    ):
+        artista_counts[entry['artista']] += entry['total']
+    for entry in (
+        Review.objects.filter(album__isnull=False)
+        .values(artista=F('album__artista'))
+        .annotate(total=Count('id'))
+    ):
+        artista_counts[entry['artista']] += entry['total']
+
+    top_artistas = sorted(artista_counts.items(), key=lambda x: -x[1])[:10]
+    artistas_data = [{'artista': a, 'total_reviews': c} for a, c in top_artistas]
+
+    return Response({
+        'top_albuns': AlbumSerializer(top_albuns, many=True).data,
+        'top_musicas': MusicaSerializer(top_musicas, many=True).data,
+        'top_artistas': artistas_data,
+    }, status=status.HTTP_200_OK)

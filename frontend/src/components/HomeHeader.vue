@@ -55,6 +55,7 @@ onBeforeUnmount(() => {
     <div class="window-body header-body">
       <div class="nav-links">
         <router-link to="/">Home</router-link>
+        <router-link to="/rankings">Rankings</router-link>
         <router-link v-if="isLogado" to="/perfil">Perfil</router-link>
         <template v-else>
           <router-link to="/login">Login</router-link>

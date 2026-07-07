@@ -8,6 +8,7 @@ import AdminSpotify from './components/adminSpotify.vue'
 import Perfil from './components/Perfil.vue'
 import DetalheMusica from './components/DetalheMusica.vue'
 import DetalheAlbum from './components/DetalheAlbum.vue'
+import RankingsPage from './components/RankingsPage.vue'
 
 const routes = [
   {
@@ -39,6 +40,11 @@ const routes = [
     path: '/album/:id',
     name: 'DetalheAlbum',
     component: DetalheAlbum
+  },
+  {
+    path: '/rankings',
+    name: 'Rankings',
+    component: RankingsPage
   },
   {
     path: '/admin-spotify',
