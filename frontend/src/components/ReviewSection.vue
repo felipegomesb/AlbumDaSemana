@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   targetType: {
@@ -17,6 +18,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['changed'])
+const router = useRouter()
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
 const baseUrl = computed(() => (apiBase || '').replace(/\/api\/?$/, ''))
@@ -151,6 +153,11 @@ const formatarData = (dataStr) => {
   return data.toLocaleDateString('pt-BR')
 }
 
+const abrirPerfil = (usuarioId) => {
+  if (!usuarioId) return
+  router.push(`/perfil/${usuarioId}`)
+}
+
 onMounted(() => {
   carregarUsuario()
   carregarReviews(true)
@@ -220,7 +227,14 @@ watch(() => props.targetId, () => {
               <div v-else class="avatar-quadrado placeholder">
                 {{ review.usuario_username?.charAt(0)?.toUpperCase() }}
               </div>
-              <strong>{{ review.usuario_username }}</strong>
+              <button
+                type="button"
+                class="autor-link"
+                :disabled="!review.usuario"
+                @click="abrirPerfil(review.usuario)"
+              >
+                {{ review.usuario_username }}
+              </button>
               <span v-if="review.nota" class="estrelas-exibicao">
                 <span v-for="n in 5" :key="n" :class="{ preenchida: n <= review.nota }">★</span>
               </span>
@@ -345,6 +359,23 @@ watch(() => props.targetId, () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.autor-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-weight: bold;
+  color: #000080;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.autor-link:disabled {
+  color: #666;
+  cursor: default;
+  text-decoration: none;
 }
 
 .avatar-quadrado {

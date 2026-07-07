@@ -55,6 +55,11 @@ const routes = [
     path: '/perfil',
     name: 'Perfil',
     component: Perfil
+  },
+  {
+    path: '/perfil/:id',
+    name: 'PerfilUsuario',
+    component: Perfil
   }
 ]
 

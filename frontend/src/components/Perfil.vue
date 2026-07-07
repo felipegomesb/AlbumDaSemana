@@ -1,11 +1,13 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import HomeHeader from './HomeHeader.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
+const route = useRoute()
 const router = useRouter()
 
+const usuarioLogado = ref(null)
 const usuario = ref(null)
 const reviews = ref([])
 const loading = ref(false)
@@ -30,10 +32,14 @@ const form = ref({
 })
 
 const baseUrl = computed(() => (apiBase || '').replace(/\/api\/?$/, ''))
+const perfilIdRota = computed(() => {
+  const id = Number(route.params.id)
+  return Number.isFinite(id) && id > 0 ? id : null
+})
 
-const carregarUsuario = () => {
+const carregarUsuarioLogado = () => {
   const savedUser = localStorage.getItem('albumDaSemanaUser')
-  usuario.value = savedUser ? JSON.parse(savedUser) : null
+  usuarioLogado.value = savedUser ? JSON.parse(savedUser) : null
 }
 
 const normalizarAvatar = (valor) => {
@@ -59,7 +65,7 @@ const sincronizarUsuario = (dados) => {
 
   localStorage.setItem('albumDaSemanaUser', JSON.stringify(storageUser))
   window.dispatchEvent(new Event('album-user-changed'))
-  usuario.value = storageUser
+  usuarioLogado.value = storageUser
 }
 
 const limparPreviewLocal = () => {
@@ -70,9 +76,11 @@ const limparPreviewLocal = () => {
 }
 
 const carregarPerfil = async () => {
-  carregarUsuario()
+  carregarUsuarioLogado()
 
-  if (!usuario.value?.id) {
+  const alvoId = perfilIdRota.value || usuarioLogado.value?.id
+
+  if (!alvoId) {
     router.push('/login')
     return
   }
@@ -81,13 +89,25 @@ const carregarPerfil = async () => {
   erro.value = ''
 
   try {
-    const response = await fetch(`${apiBase}/users/${usuario.value.id}/perfil/`)
+    const response = await fetch(`${apiBase}/users/${alvoId}/perfil/`)
     if (!response.ok) {
       throw new Error('Falha ao carregar perfil')
     }
 
     const data = await response.json()
-    sincronizarUsuario(data)
+
+    if (usuarioLogado.value?.id === data.id) {
+      sincronizarUsuario(data)
+    }
+
+    usuario.value = {
+      id: data.id,
+      user_username: data.user_username,
+      user_email: data.user_email,
+      user_bio: data.user_bio || '',
+      user_avatar: data.user_avatar || '',
+      is_admin: data.is_admin,
+    }
     reviews.value = data.reviews || []
     form.value = {
       user_username: data.user_username || '',
@@ -97,6 +117,8 @@ const carregarPerfil = async () => {
     avatarPreview.value = normalizarAvatar(data.user_avatar)
   } catch (error) {
     erro.value = 'Não foi possível carregar os dados do perfil.'
+    usuario.value = null
+    reviews.value = []
   } finally {
     loading.value = false
   }
@@ -116,7 +138,7 @@ const selecionarAvatar = (event) => {
 }
 
 const salvarPerfil = async () => {
-  if (!usuario.value?.id) return
+  if (!perfilProprio.value || !usuarioLogado.value?.id) return
 
   salvando.value = true
   erro.value = ''
@@ -124,7 +146,7 @@ const salvarPerfil = async () => {
 
   try {
     const payload = new FormData()
-    payload.append('id', usuario.value.id)
+    payload.append('id', usuarioLogado.value.id)
     payload.append('user_username', form.value.user_username.trim())
     payload.append('user_bio', form.value.user_bio || '')
 
@@ -136,7 +158,7 @@ const salvarPerfil = async () => {
       payload.append('user_avatar', avatarFile.value)
     }
 
-    const response = await fetch(`${apiBase}/users/${usuario.value.id}/perfil/`, {
+    const response = await fetch(`${apiBase}/users/${usuarioLogado.value.id}/perfil/`, {
       method: 'PUT',
       body: payload,
     })
@@ -147,6 +169,14 @@ const salvarPerfil = async () => {
 
     const data = await response.json()
     sincronizarUsuario(data)
+    usuario.value = {
+      id: data.id,
+      user_username: data.user_username,
+      user_email: data.user_email,
+      user_bio: data.user_bio || '',
+      user_avatar: data.user_avatar || '',
+      is_admin: data.is_admin,
+    }
     reviews.value = data.reviews || reviews.value
     form.value.user_password = ''
     avatarFile.value = null
@@ -160,7 +190,7 @@ const salvarPerfil = async () => {
 }
 
 const deletarConta = async () => {
-  if (!usuario.value?.id) return
+  if (!perfilProprio.value || !usuarioLogado.value?.id) return
 
   const confirmar = window.confirm('Tem certeza que deseja deletar sua conta? Esta ação não pode ser desfeita.')
   if (!confirmar) return
@@ -169,7 +199,7 @@ const deletarConta = async () => {
   erro.value = ''
 
   try {
-    const response = await fetch(`${apiBase}/users/${usuario.value.id}/perfil/`, {
+    const response = await fetch(`${apiBase}/users/${usuarioLogado.value.id}/perfil/`, {
       method: 'DELETE',
     })
 
@@ -190,6 +220,7 @@ const deletarConta = async () => {
 const sair = () => {
   localStorage.removeItem('albumDaSemanaUser')
   window.dispatchEvent(new Event('album-user-changed'))
+  usuarioLogado.value = null
   router.push('/login')
 }
 
@@ -198,7 +229,16 @@ const formatoData = (valor) => {
 }
 
 const temUsuario = computed(() => Boolean(usuario.value))
+const perfilProprio = computed(() => {
+  if (!usuario.value?.id || !usuarioLogado.value?.id) return false
+  return usuario.value.id === usuarioLogado.value.id
+})
+const tituloPerfil = computed(() => {
+  if (!temUsuario.value) return 'Perfil'
+  return perfilProprio.value ? 'Meu Perfil' : `Perfil de ${usuario.value.user_username}`
+})
 const avatarExibido = computed(() => {
+  if (!usuario.value) return ''
   if (previewObjectUrl.value) {
     return previewObjectUrl.value
   }
@@ -207,6 +247,10 @@ const avatarExibido = computed(() => {
 })
 
 onMounted(() => {
+  carregarPerfil()
+})
+
+watch(() => route.params.id, () => {
   carregarPerfil()
 })
 
@@ -229,7 +273,7 @@ onBeforeUnmount(() => {
 
     <div class="window perfil-window">
       <div class="title-bar">
-        <div class="title-bar-text">Perfil</div>
+        <div class="title-bar-text">{{ tituloPerfil }}</div>
         <div class="title-bar-controls">
           <button type="button" aria-label="Minimize" @click="perfilMinimized = !perfilMinimized"></button>
           <button aria-label="Maximize"></button>
@@ -249,14 +293,14 @@ onBeforeUnmount(() => {
               </div>
               <div class="perfil-identidade">
                 <h2>{{ usuario.user_username }}</h2>
-                <p>{{ usuario.user_email }}</p>
+                <p v-if="perfilProprio">{{ usuario.user_email }}</p>
                 <p v-if="usuario.user_bio" class="bio-text">{{ usuario.user_bio }}</p>
                 <p v-else class="bio-text vazio">Sem bio cadastrada.</p>
               </div>
             </div>
 
             <div class="perfil-grid">
-              <section class="window bloco">
+              <section v-if="perfilProprio" class="window bloco">
                 <div class="title-bar">
                   <div class="title-bar-text">Editar perfil</div>
                   <div class="title-bar-controls">
@@ -314,7 +358,7 @@ onBeforeUnmount(() => {
                     <span class="resumo-label">Username</span>
                     <strong>{{ usuario.user_username }}</strong>
                   </div>
-                  <div>
+                  <div v-if="perfilProprio">
                     <span class="resumo-label">E-mail</span>
                     <strong>{{ usuario.user_email }}</strong>
                   </div>
@@ -350,18 +394,22 @@ onBeforeUnmount(() => {
                       <span>{{ formatoData(review.criado_em) }}</span>
                     </div>
                     <p class="review-tipo">{{ review.alvo_tipo === 'album' ? 'Álbum' : 'Música' }}</p>
+                    <p v-if="review.nota" class="review-estrelas">
+                      <span v-for="n in 5" :key="n" :class="{ preenchida: n <= review.nota }">★</span>
+                      <span class="review-nota">{{ review.nota }}/5</span>
+                    </p>
                     <p class="review-texto">{{ review.texto }}</p>
                     <div class="review-metrica">Likes {{ review.likes }} | Deslikes {{ review.dislikes }}</div>
                   </article>
                 </div>
-                <div v-else class="estado">Você ainda não publicou reviews.</div>
+                <div v-else class="estado">{{ perfilProprio ? 'Você ainda não publicou reviews.' : 'Este usuário ainda não publicou reviews.' }}</div>
               </div>
             </section>
 
-            <div v-if="mensagem" class="status sucesso">{{ mensagem }}</div>
+            <div v-if="perfilProprio && mensagem" class="status sucesso">{{ mensagem }}</div>
             <div v-if="erro" class="status erro">{{ erro }}</div>
 
-            <div class="acoes-finais">
+            <div v-if="perfilProprio" class="acoes-finais">
               <button type="button" class="perigo" :disabled="removendo" @click="deletarConta">
                 {{ removendo ? 'Removendo...' : 'Deletar conta' }}
               </button>
@@ -371,7 +419,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else class="sem-sessao">
-          <p>Nenhum usuário autenticado.</p>
+          <p>Nenhum perfil encontrado.</p>
           <button type="button" @click="router.push('/login')">Ir para login</button>
         </div>
       </div>
@@ -504,6 +552,23 @@ onBeforeUnmount(() => {
 .review-tipo,
 .review-metrica {
   margin: 6px 0 0;
+  color: #666;
+  font-size: 12px;
+}
+
+.review-estrelas {
+  margin: 6px 0 0;
+  color: #bbb;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.review-estrelas .preenchida {
+  color: #d4a017;
+}
+
+.review-nota {
+  margin-left: 8px;
   color: #666;
   font-size: 12px;
 }
