@@ -295,8 +295,12 @@ def spotify_add_track(request):
             'genero': genero,
             'duracao_ms': duracao_ms,
             'capa_url': capa_url,
+            'adicionado_por_admin': True,
         }
     )
+    if not created and not musica.adicionado_por_admin:
+        musica.adicionado_por_admin = True
+        musica.save(update_fields=['adicionado_por_admin'])
 
     serializer = MusicaSerializer(musica)
     http_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
@@ -326,8 +330,12 @@ def spotify_add_album(request):
             'ano': ano,
             'genero': genero,
             'capa_url': capa_url,
+            'adicionado_por_admin': True,
         }
     )
+    if not created and not album.adicionado_por_admin:
+        album.adicionado_por_admin = True
+        album.save(update_fields=['adicionado_por_admin'])
 
     if created:
         tracks_response = spotify.get_album_tracks(spotify_id)
@@ -552,9 +560,12 @@ def busca(request):
 
     musicas_data = []
     albuns_data = []
+    reviews_data = []
 
     if tipo in ('todos', 'musica'):
-        qs = Musica.objects.all()
+        admin_qs = Musica.objects.filter(adicionado_por_admin=True)
+        com_reviews_qs = Musica.objects.filter(reviews_musicas__isnull=False).distinct()
+        qs = (admin_qs | com_reviews_qs).distinct()
         if query:
             qs = qs.filter(
                 Q(titulo__icontains=query) | Q(artista__icontains=query) | Q(genero__icontains=query)
@@ -564,7 +575,9 @@ def busca(request):
         musicas_data = MusicaSerializer(qs.order_by(ordem), many=True).data
 
     if tipo in ('todos', 'album'):
-        qs = Album.objects.all()
+        admin_qs = Album.objects.filter(adicionado_por_admin=True)
+        com_reviews_qs = Album.objects.filter(reviews_albuns__isnull=False).distinct()
+        qs = (admin_qs | com_reviews_qs).distinct()
         if query:
             qs = qs.filter(
                 Q(titulo__icontains=query) | Q(artista__icontains=query) | Q(genero__icontains=query)
@@ -573,6 +586,29 @@ def busca(request):
             qs = qs.filter(genero__iexact=genero)
         albuns_data = AlbumSerializer(qs.order_by(ordem), many=True).data
 
+    reviews_qs = Review.objects.select_related('musica', 'album', 'usuario').all()
+    if query:
+        reviews_qs = reviews_qs.filter(
+            Q(texto__icontains=query)
+            | Q(autor_nome__icontains=query)
+            | Q(musica__titulo__icontains=query)
+            | Q(album__titulo__icontains=query)
+            | Q(musica__artista__icontains=query)
+            | Q(album__artista__icontains=query)
+        )
+    if tipo == 'musica':
+        reviews_qs = reviews_qs.filter(musica__isnull=False)
+    elif tipo == 'album':
+        reviews_qs = reviews_qs.filter(album__isnull=False)
+
+    ordem_review_map = {
+        'recente': '-criado_em',
+        'likes': '-likes',
+        'titulo': 'autor_nome',
+    }
+    ordem_review = ordem_review_map.get(ordenar, '-criado_em')
+    reviews_data = ReviewSerializer(reviews_qs.order_by(ordem_review), many=True).data
+
     generos_musica = list(Musica.objects.exclude(genero='').values_list('genero', flat=True).distinct())
     generos_album = list(Album.objects.exclude(genero='').values_list('genero', flat=True).distinct())
     generos = sorted(set(generos_musica + generos_album))
@@ -580,6 +616,7 @@ def busca(request):
     return Response({
         "musicas": musicas_data,
         "albuns": albuns_data,
+        "reviews": reviews_data,
         "generos": generos,
     }, status=status.HTTP_200_OK)
 
