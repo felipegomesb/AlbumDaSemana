@@ -124,6 +124,47 @@ const publicarReview = async () => {
   }
 }
 
+const editandoReview = ref(null)
+
+const iniciarEdicao = (review) => {
+  editandoReview.value = review.id
+  novoTexto.value = review.texto
+  notaSelecionada.value = review.nota || 0
+}
+
+const cancelarEdicao = () => {
+  editandoReview.value = null
+  if (reviewDoUsuario.value) {
+    novoTexto.value = reviewDoUsuario.value.texto
+    notaSelecionada.value = reviewDoUsuario.value.nota || 0
+  } else {
+    novoTexto.value = ''
+    notaSelecionada.value = 0
+  }
+}
+
+const apagarReview = async (reviewId) => {
+  if (!usuario.value) return
+  if (!window.confirm('Tem certeza que deseja apagar esta review?')) return
+
+  try {
+    const response = await fetch(`${apiBase}/reviews/${reviewId}/`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario_id: usuario.value.id }),
+    })
+    if (response.status === 204 || response.ok) {
+      novoTexto.value = ''
+      notaSelecionada.value = 0
+      editandoReview.value = null
+      await carregarReviews()
+      emit('changed')
+    }
+  } catch (error) {
+    mensagem.value = 'Nao foi possivel apagar a review.'
+  }
+}
+
 const reagir = async (reviewId, action) => {
   if (!usuario.value) {
     mensagem.value = 'Faça login para reagir.'
@@ -202,12 +243,16 @@ watch(() => props.targetId, () => {
           placeholder="Escreva sua review..."
         />
         <div class="review-actions">
-          <span v-if="usuario && reviewDoUsuario" class="autor">Editando sua review de {{ usuario.user_username }}</span>
+          <span v-if="editandoReview" class="autor">Editando review</span>
+          <span v-else-if="usuario && reviewDoUsuario" class="autor">Editando sua review de {{ usuario.user_username }}</span>
           <span v-else-if="usuario" class="autor">Publicando como {{ usuario.user_username }}</span>
           <span v-else class="autor alerta">Faça login para publicar</span>
-          <button type="submit" :disabled="enviando || !usuario">
-            {{ enviando ? 'Salvando...' : (reviewDoUsuario ? 'Atualizar review' : 'Publicar review') }}
-          </button>
+          <div class="review-btns">
+            <button v-if="editandoReview" type="button" @click="cancelarEdicao">Cancelar</button>
+            <button type="submit" :disabled="enviando || !usuario">
+              {{ enviando ? 'Salvando...' : (reviewDoUsuario || editandoReview ? 'Atualizar review' : 'Publicar review') }}
+            </button>
+          </div>
         </div>
       </form>
 
@@ -242,9 +287,15 @@ watch(() => props.targetId, () => {
             <span>{{ formatarData(review.criado_em) }}</span>
           </div>
           <p class="review-texto">{{ review.texto }}</p>
-          <div v-if="usuario" class="review-reacoes">
-            <button type="button" :class="{ ativo: review.user_reaction === 'like' }" @click="reagir(review.id, 'like')">Like {{ review.likes }}</button>
-            <button type="button" :class="{ ativo: review.user_reaction === 'dislike' }" @click="reagir(review.id, 'dislike')">Deslike {{ review.dislikes }}</button>
+          <div v-if="usuario" class="review-rodape">
+            <div class="review-reacoes">
+              <button type="button" :class="{ ativo: review.user_reaction === 'like' }" @click="reagir(review.id, 'like')">Like {{ review.likes }}</button>
+              <button type="button" :class="{ ativo: review.user_reaction === 'dislike' }" @click="reagir(review.id, 'dislike')">Deslike {{ review.dislikes }}</button>
+            </div>
+            <div v-if="review.usuario === usuario.id" class="review-owner-actions">
+              <button type="button" @click="iniciarEdicao(review)">Editar</button>
+              <button type="button" class="btn-apagar" @click="apagarReview(review.id)">Apagar</button>
+            </div>
           </div>
         </article>
       </div>
@@ -401,6 +452,19 @@ watch(() => props.targetId, () => {
   white-space: pre-wrap;
 }
 
+.review-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.review-rodape {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .review-reacoes {
   display: flex;
   gap: 8px;
@@ -410,5 +474,14 @@ watch(() => props.targetId, () => {
 .review-reacoes button.ativo {
   font-weight: bold;
   box-shadow: inset 1px 1px 2px #000;
+}
+
+.review-owner-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-apagar {
+  color: #7a0000;
 }
 </style>
