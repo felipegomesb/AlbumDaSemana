@@ -477,18 +477,25 @@ def album_da_semana(request):
     return Response(data, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
+@api_view(['POST', 'DELETE'])
 def definir_album_da_semana(request):
     if not _is_admin(request):
         return Response({"error": "Acesso restrito a administradores"}, status=status.HTTP_403_FORBIDDEN)
+
+    hoje = date.today()
+    segunda = hoje - timedelta(days=hoje.weekday())
+
+    if request.method == 'DELETE':
+        deletados, _ = AlbumDaSemana.objects.filter(semana_inicio=segunda).delete()
+        if deletados == 0:
+            return Response({"error": "Nenhum álbum da semana definido para esta semana"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     album_id = request.data.get('album_id')
     if not album_id:
         return Response({"error": "album_id é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
 
     album = get_object_or_404(Album, pk=album_id)
-    hoje = date.today()
-    segunda = hoje - timedelta(days=hoje.weekday())
 
     entrada, _ = AlbumDaSemana.objects.update_or_create(
         semana_inicio=segunda,
@@ -499,17 +506,24 @@ def definir_album_da_semana(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
+@api_view(['POST', 'DELETE'])
 def definir_musica_do_dia(request):
     if not _is_admin(request):
         return Response({"error": "Acesso restrito a administradores"}, status=status.HTTP_403_FORBIDDEN)
+
+    hoje = date.today()
+
+    if request.method == 'DELETE':
+        deletados, _ = MusicaDoDia.objects.filter(data=hoje).delete()
+        if deletados == 0:
+            return Response({"error": "Nenhuma música do dia definida para hoje"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     musica_id = request.data.get('musica_id')
     if not musica_id:
         return Response({"error": "musica_id é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
 
     musica = get_object_or_404(Musica, pk=musica_id)
-    hoje = date.today()
 
     entrada, _ = MusicaDoDia.objects.update_or_create(
         data=hoje,

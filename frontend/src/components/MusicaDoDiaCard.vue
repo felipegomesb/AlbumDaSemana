@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ReviewSection from './ReviewSection.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
@@ -30,6 +30,25 @@ const carregarMusica = async () => {
     erro.value = 'Nenhuma música cadastrada ainda.'
   } finally {
     loading.value = false
+  }
+}
+
+const isAdmin = computed(() => usuario.value?.is_admin === true)
+
+const removerMusicaDoDia = async () => {
+  if (!window.confirm('Tem certeza que deseja remover a Musica do Dia?')) return
+  try {
+    const response = await fetch(`${apiBase}/musica-do-dia/definir/`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario_id: usuario.value.id })
+    })
+    if (response.status === 204 || response.ok) {
+      musica.value = null
+      erro.value = 'Musica do dia removida. Uma nova sera sorteada automaticamente.'
+    }
+  } catch (e) {
+    console.error(e)
   }
 }
 
@@ -97,6 +116,9 @@ onMounted(() => {
           <div v-if="usuario" class="reacoes">
             <button type="button" :class="{ ativo: userReaction === 'like' }" @click="reagir('like')">Like {{ musica.likes || 0 }}</button>
             <button type="button" :class="{ ativo: userReaction === 'dislike' }" @click="reagir('dislike')">Deslike {{ musica.dislikes || 0 }}</button>
+          </div>
+          <div v-if="isAdmin" class="admin-actions">
+            <button type="button" class="btn-remover" @click="removerMusicaDoDia">Remover Musica do Dia</button>
           </div>
         </div>
       </div>
@@ -179,6 +201,16 @@ onMounted(() => {
 .reacoes button.ativo {
   font-weight: bold;
   box-shadow: inset 1px 1px 2px #000;
+}
+
+.admin-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.btn-remover {
+  color: #7a0000;
 }
 
 .loading, .erro {

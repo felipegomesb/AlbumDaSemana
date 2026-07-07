@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ReviewSection from './ReviewSection.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL
@@ -30,6 +30,25 @@ const carregarAlbum = async () => {
     erro.value = 'Nenhum álbum cadastrado ainda.'
   } finally {
     loading.value = false
+  }
+}
+
+const isAdmin = computed(() => usuario.value?.is_admin === true)
+
+const removerAlbumDaSemana = async () => {
+  if (!window.confirm('Tem certeza que deseja remover o Album da Semana?')) return
+  try {
+    const response = await fetch(`${apiBase}/album-da-semana/definir/`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario_id: usuario.value.id })
+    })
+    if (response.status === 204 || response.ok) {
+      album.value = null
+      erro.value = 'Album da semana removido. Um novo sera sorteado automaticamente.'
+    }
+  } catch (e) {
+    console.error(e)
   }
 }
 
@@ -96,6 +115,9 @@ onMounted(() => {
           <div v-if="usuario" class="reacoes">
             <button type="button" :class="{ ativo: userReaction === 'like' }" @click="reagir('like')">Like {{ album.likes || 0 }}</button>
             <button type="button" :class="{ ativo: userReaction === 'dislike' }" @click="reagir('dislike')">Deslike {{ album.dislikes || 0 }}</button>
+          </div>
+          <div v-if="isAdmin" class="admin-actions">
+            <button type="button" class="btn-remover" @click="removerAlbumDaSemana">Remover Album da Semana</button>
           </div>
 
           <div v-if="album.faixas && album.faixas.length" class="faixas-section">
@@ -211,6 +233,16 @@ onMounted(() => {
 .reacoes button.ativo {
   font-weight: bold;
   box-shadow: inset 1px 1px 2px #000;
+}
+
+.admin-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.btn-remover {
+  color: #7a0000;
 }
 
 .loading, .erro {
