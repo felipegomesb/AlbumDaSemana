@@ -24,6 +24,7 @@ class Musica(models.Model):
     spotify_id = models.CharField(max_length=100, unique=True)
     likes = models.IntegerField(default=0)
     dislikes = models.IntegerField(default=0)
+    adicionado_por_admin = models.BooleanField(default=False)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -42,6 +43,7 @@ class Album(models.Model):
     spotify_id = models.CharField(max_length=100, unique=True)
     likes = models.IntegerField(default=0)
     dislikes = models.IntegerField(default=0)
+    adicionado_por_admin = models.BooleanField(default=False)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

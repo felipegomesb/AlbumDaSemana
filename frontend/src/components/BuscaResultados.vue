@@ -9,6 +9,7 @@ const router = useRouter()
 
 const musicas = ref([])
 const albuns = ref([])
+const reviews = ref([])
 const spotifyTracks = ref([])
 const spotifyAlbums = ref([])
 const generos = ref([])
@@ -40,6 +41,7 @@ const buscarLocal = async (q) => {
     const data = await res.json()
     musicas.value = data.musicas || []
     albuns.value = data.albuns || []
+    reviews.value = data.reviews || []
     generos.value = data.generos || []
   }
 }
@@ -118,6 +120,7 @@ const buscar = async () => {
     if (fonte.value === 'criar') {
       musicas.value = []
       albuns.value = []
+      reviews.value = []
       await buscarSpotify(q)
     } else {
       spotifyTracks.value = []
@@ -171,9 +174,13 @@ const abrirAlbum = async (album) => {
   }
 }
 
+const formatarData = (dataStr) => {
+  return new Date(dataStr).toLocaleDateString('pt-BR')
+}
+
 const totalResultados = () => {
   if (fonte.value === 'criar') return spotifyTracks.value.length + spotifyAlbums.value.length
-  return musicas.value.length + albuns.value.length
+  return musicas.value.length + albuns.value.length + reviews.value.length
 }
 
 onMounted(() => buscar())
@@ -335,7 +342,7 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
 
           <!-- BUSCAR POSTS (local) -->
           <template v-else>
-            <div v-if="!musicas.length && !albuns.length" class="vazio">
+            <div v-if="!musicas.length && !albuns.length && !reviews.length" class="vazio">
               Nenhum resultado encontrado.
             </div>
 
@@ -409,6 +416,35 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <div v-if="reviews.length" class="secao">
+              <div class="secao-header">
+                <h3>Posts ({{ reviews.length }})</h3>
+              </div>
+              <div class="reviews-lista">
+                <article
+                  v-for="r in reviews"
+                  :key="r.id"
+                  class="review-card"
+                  @click="router.push(r.alvo_tipo === 'album' ? `/album/${r.album}` : `/musica/${r.musica}`)"
+                >
+                  <div class="review-topo">
+                    <div>
+                      <strong>{{ r.alvo_titulo }}</strong>
+                      <span v-if="r.alvo_artista"> - {{ r.alvo_artista }}</span>
+                      <span class="review-tipo-tag">{{ r.alvo_tipo === 'album' ? 'Album' : 'Musica' }}</span>
+                    </div>
+                    <span class="review-data">{{ formatarData(r.criado_em) }}</span>
+                  </div>
+                  <p class="review-autor">por {{ r.usuario_username || r.autor_nome }}</p>
+                  <p class="review-texto">{{ r.texto }}</p>
+                  <div class="review-metrica">
+                    <span v-if="r.nota">Nota: {{ r.nota }}/5</span>
+                    <span>Likes {{ r.likes || 0 }} | Deslikes {{ r.dislikes || 0 }}</span>
+                  </div>
+                </article>
+              </div>
             </div>
           </template>
         </div>
@@ -555,5 +591,77 @@ watch([tipoFiltro, generoFiltro, ordenar, fonte], () => buscar())
   text-align: center;
   padding: 20px;
   color: #666;
+}
+
+.reviews-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-card {
+  border: 1px solid #bdbdbd;
+  padding: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.review-card:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.review-topo {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.review-tipo-tag {
+  background: #c0c0c0;
+  border: 1px solid #808080;
+  padding: 0 4px;
+  font-size: 10px;
+  margin-left: 6px;
+  color: #000;
+}
+
+.review-data {
+  font-size: 12px;
+  color: #666;
+}
+
+.review-card:hover .review-data {
+  color: #ccc;
+}
+
+.review-autor {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.review-card:hover .review-autor {
+  color: #ccc;
+}
+
+.review-texto {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+
+.review-metrica {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #666;
+  display: flex;
+  gap: 12px;
+}
+
+.review-card:hover .review-metrica {
+  color: #ccc;
 }
 </style>

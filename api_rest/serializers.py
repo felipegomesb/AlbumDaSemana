@@ -47,8 +47,8 @@ class MusicaSerializer(serializers.ModelSerializer):
         model = Musica
         fields = [
             'id', 'titulo', 'artista', 'album_nome', 'genero', 'duracao_ms',
-            'capa_url', 'spotify_id', 'likes', 'dislikes', 'criado_em',
-            'review_count', 'review_likes', 'review_dislikes', 'nota_media'
+            'capa_url', 'spotify_id', 'likes', 'dislikes', 'adicionado_por_admin',
+            'criado_em', 'review_count', 'review_likes', 'review_dislikes', 'nota_media'
         ]
 
     def get_review_count(self, obj):
@@ -82,7 +82,8 @@ class AlbumSerializer(serializers.ModelSerializer):
         model = Album
         fields = [
             'id', 'titulo', 'artista', 'ano', 'genero', 'capa_url',
-            'spotify_id', 'likes', 'dislikes', 'criado_em', 'faixas',
+            'spotify_id', 'likes', 'dislikes', 'adicionado_por_admin',
+            'criado_em', 'faixas',
             'review_count', 'review_likes', 'review_dislikes', 'nota_media'
         ]
 
