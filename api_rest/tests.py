@@ -77,3 +77,31 @@ def test_perfil_usuario_atualiza_dados_e_lista_reviews():
     assert payload['review_count'] == 1
     assert payload['reviews'][0]['alvo_titulo'] == 'Musica teste'
     assert payload['reviews'][0]['alvo_tipo'] == 'musica'
+
+
+@pytest.mark.django_db
+def test_review_sem_texto_retorna_400():
+    client = APIClient()
+    musica = Musica.objects.create(
+        titulo='Teste', artista='Artista', spotify_id='sp-val-001'
+    )
+    response = client.post(
+        f'/api/reviews/musicas/{musica.id}/',
+        {'texto': '', 'autor_nome': 'usuario', 'nota': 3},
+        format='json',
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_review_com_nota_invalida_retorna_400():
+    client = APIClient()
+    musica = Musica.objects.create(
+        titulo='Teste', artista='Artista', spotify_id='sp-val-002'
+    )
+    response = client.post(
+        f'/api/reviews/musicas/{musica.id}/',
+        {'texto': 'Boa musica', 'autor_nome': 'usuario', 'nota': 10},
+        format='json',
+    )
+    assert response.status_code == 400
